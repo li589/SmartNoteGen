@@ -1,0 +1,16 @@
+# P1 AI 依赖（二期 AI 冲刺；默认不安装！P0/P1-非AI 环境不得安装本文件）
+# 安装顺序（重要）：
+#   1. 先装 CUDA 版 torch（RTX 4060 / CUDA 12.1）：
+#        pip install torch --index-url https://download.pytorch.org/whl/cu121
+#   2. 再装其余：
+#        pip install -r requirements/ai.txt
+#
+# 注意：DiffRhythm 官方 requirements.txt 默认 torch 为 CPU 版，必须换装上面的 CUDA 版。
+# 以下版本为 P2-3 锁定基线（二期冲刺时以实际 spike 结论微调）。
+
+# torch（CUDA 12.1 构建；以 pip 安装为准，不在此文件锁定 pip 索引）
+# audiocraft / diffrhythm 为 git 依赖，锁定 commit 需在二期 spike 时确认后回填
+audiocraft@git+https://github.com/facebookresearch/audiocraft.git   # MusicGen
+diffrhythm@git+https://github.com/ASLP-lab/DiffRhythm.git           # DiffRhythm（Apache 2.0）
+transformers==4.40.0
+diffusers==0.27.0

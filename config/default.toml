@@ -1,0 +1,77 @@
+# ============================================================
+# SmartNoteGen 默认配置模板（config init 生成 smartnotegen.toml 时以此为蓝本）
+# 配置合并优先级（低 -> 高）：
+#   内置默认值 < 本文件 < 用户配置文件（--config 指定，或项目根 smartnotegen.toml）< CLI 参数
+# ============================================================
+
+[paths]
+# module 根目录（相对项目根；fluidsynth 二进制与 SoundFont 音色库均位于其下）
+module_dir = "module"
+# fluidsynth 可执行文件（相对项目根；Windows 发行版位于 module/fluidsynth/bin/）
+fluidsynth = "module/fluidsynth/bin/fluidsynth.exe"
+# 默认音色库 A（GeneralUser-GS，轻量通用；相对项目根）
+soundfont = "module/GeneralUser_GS/GeneralUser-GS/GeneralUser-GS.sf2"
+# 备选音色库 B（ColomboGMGS2；默认音色库缺失时自动回退）
+soundfont_backup = "module/GeneralUser_GS/ColomboGMGS2_SF2/ColomboGMGS2.sf2"
+# 默认输出根目录（相对项目根或绝对路径）
+output_dir = "output"
+
+[defaults]
+bpm = 120
+key = "C major"
+time_signature = "4/4"
+bars = 8
+chords = "C-G-Am-F"
+style = "pop"
+# 可选轨道：chords / melody / bass / drums；至少保留 3 轨（和弦/旋律/贝斯）
+tracks = ["chords", "melody", "bass"]
+with_drums = false
+# P2-2 乐理规则开关（全部默认关闭，不破坏 P0 输出）
+voice_leading = false
+counterpoint = false
+inversion = false
+# 节奏型名（引用 RhythmPatternRegistry 内置型，如 pop/rock/electronic/classical/waltz/funk）
+# rhythm_pattern = "pop"
+
+[export]
+format = "wav"          # wav | mp3
+sample_rate = 44100     # 44.1kHz（Suno 最佳实践）
+bit_depth = 16          # 16bit
+duration = 25           # 10–30s 区间内
+fade_ms = 50
+
+[random]
+# seed 留空/注释 = 不固定（每次结果不同）；填入数字 = 可复现（相同参数 + 相同 seed 结果一致）
+# 示例：seed = 42
+
+[output]
+# 目录布局：project-date（<root>/<project>/<YYYYMMDD>/，新默认）| legacy（P0 旧格式）
+layout = "project-date"
+# 默认项目名（CLI --project 覆盖）
+project = "default"
+# 自动命名模板（seq 递增防覆盖）
+naming = "{style}_{bpm}_{seed}_{seq}"
+# 每次运行产出 metadata.json
+metadata = true
+
+[dsp]
+normalize_dbfs = -1.0   # 峰值目标（dBFS）
+fade_in_ms = 100        # 淡入（0-5000ms）
+fade_out_ms = 300       # 淡出（0-5000ms）
+eq = false              # 可选 EQ（低频切），默认关
+eq_low_cut_hz = 30
+compressor = false      # 可选压缩器，默认关
+compressor_ratio = 2.0
+compressor_threshold_db = -12.0
+reverb = false          # 渲染链可选；Suno 导出链恒禁混响
+
+[styles]
+# 自定义风格注册目录（相对项目根；*.toml / *.json）
+dir = "styles"
+# 扩展搜索路径（绝对路径列表）
+search_paths = []
+
+[ai]
+device = "cuda"         # cuda | cpu（--device 覆盖）
+model_size = "medium"   # musicgen：medium | small
+diffrhythm_chunked = true

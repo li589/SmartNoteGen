@@ -1,0 +1,8 @@
+# 古典风格预设（P2-4 基线 4/4）
+name = "classical"
+bpm_range = [60, 100]
+instruments = { chords = 46, melody = 73, bass = 43, drums = 0 }
+rhythm_pattern = "classical"
+melody_profile = { register = "C4-C6", interval_bias = "step", variation_strength = 0.2 }
+chord_preference = ["C-G-Am-F", "Am-Dm-G-C", "C-Am-F-G", "G-C-Em-Am"]
+dsp_defaults = { fade_in_ms = 150, fade_out_ms = 400, normalize_dbfs = -1.0 }

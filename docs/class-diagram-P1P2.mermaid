@@ -1,0 +1,171 @@
+classDiagram
+    direction LR
+
+    class Config {
+        +PathsConfig paths
+        +DefaultsConfig defaults
+        +ExportConfig export
+        +RandomConfig random
+        +OutputConfig output
+        +DspConfig dsp
+        +StylesConfig styles
+        +AiConfig ai
+        +load(path) Config
+        +merge_cli(**overrides) Config
+    }
+
+    class PathResolver {
+        +resolve_fluidsynth() Path
+        +resolve_soundfont() Path
+        +probe_all() List~EnvProbe~
+        +ensure_ready() void
+    }
+
+    class EnvProbe {
+        +str component
+        +ProbeStatus status
+        +Path path
+        +str detail
+    }
+
+    class ProbeStatus {
+        <<enum>>
+        OK
+        MISSING
+        BROKEN
+    }
+
+    class ProjectRootResolver {
+        +resolve() Path
+    }
+
+    class FluidSynthRenderer {
+        +render(midi_path, soundfont, out_path, dry_run=False) str
+        +_resolve_fluidsynth() str
+    }
+
+    class DspProcessor {
+        +process(wav_path, opts, out_path) str
+        +validate(opts) void
+    }
+
+    class DspOptions {
+        +float normalize_dbfs
+        +float fade_in_ms
+        +float fade_out_ms
+        +bool eq
+        +bool compressor
+        +bool reverb
+    }
+
+    class OutputManager {
+        +root() Path
+        +plan_path(style, bpm, seed, ext, seq, suffix) Path
+        +next_seq(style, bpm, seed, ext) int
+        +write_metadata(run, artifacts) Path
+    }
+
+    class ArtifactMeta {
+        +str path
+        +str kind
+        +dict params
+        +int seed
+        +int seq
+        +float duration_s
+        +bool contains_vocals
+    }
+
+    class StyleRegistry {
+        +get(name) StylePreset
+        +register(path) StylePreset
+        +load_all() Dict~str, StylePreset~
+    }
+
+    class StylePreset {
+        +str name
+        +Tuple~int,int~ bpm_range
+        +Dict~str,int~ instruments
+        +str rhythm_pattern
+        +dict melody_profile
+        +list chord_preference
+        +dict dsp_defaults
+    }
+
+    class RhythmPatternRegistry {
+        +BUILTIN List~RhythmPattern~
+        +get(name) RhythmPattern
+        +from_string(spec) RhythmPattern
+        +from_json(path) RhythmPattern
+    }
+
+    class VoiceLeadingChecker {
+        +detect_parallel_fifths_octaves(seq) List~Violation~
+        +correct_or_report(seq, tolerance) NoteSequence
+    }
+
+    class CounterpointEngine {
+        +int strictness
+        +enforce(seq) NoteSequence
+    }
+
+    class InversionResolver {
+        +resolve(seq, smoothness_weight) NoteSequence
+    }
+
+    class BatchRunner {
+        +run() BatchResult
+    }
+
+    class BatchOptions {
+        +int count
+        +int seed
+        +list chords_choices
+        +str style
+        +bool rhythm_variants
+        +bool melody_variants
+        +bool render
+        +bool export
+        +bool parallel
+        +str project
+    }
+
+    class MusicGenAdapter {
+        +is_available() bool
+        +check_vram() float
+        +generate(source_wav, prompt, **kw) str
+    }
+
+    class DiffRhythmAdapter {
+        +is_available() bool
+        +generate(source_wav, prompt, **kw) str
+        +_patch_chunked(infer_script) void
+        +_check_espeak() bool
+    }
+
+    class AIGenerator {
+        <<interface>>
+        +generate(source_wav, prompt, **kw) str
+        +is_available() bool
+    }
+
+    Config --> PathResolver
+    Config --> DspProcessor
+    Config --> OutputManager
+    Config --> StyleRegistry
+    PathResolver --> EnvProbe
+    PathResolver --> ProbeStatus
+    ProjectRootResolver --> Config
+    FluidSynthRenderer --> PathResolver
+    DspProcessor --> DspOptions
+    OutputManager --> ArtifactMeta
+    StyleRegistry --> StylePreset
+    RhythmPatternRegistry --> StylePreset : 引用
+    BatchRunner --> BatchOptions
+    BatchRunner --> OutputManager
+    BatchRunner --> StyleRegistry
+    BatchRunner --> RhythmPatternRegistry
+    MusicGenAdapter ..|> AIGenerator
+    DiffRhythmAdapter ..|> AIGenerator
+    VoiceLeadingChecker ..> NoteSequence
+    CounterpointEngine ..> NoteSequence
+    InversionResolver ..> NoteSequence

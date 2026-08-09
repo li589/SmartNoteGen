@@ -1,0 +1,5 @@
+# 开发依赖（锁定精确版本，P2-3d）
+pytest==9.1.1
+pytest-cov==7.1.0
+coverage==7.15.4
+ruff==0.11.0            # lint（如本机版本不同，可 pip install ruff==<版本> 对齐）

@@ -1,0 +1,10 @@
+# 流行风格预设（P2-4 基线 1/4）
+name = "pop"
+bpm_range = [100, 128]
+# 轨道 -> GM Program（与 P0 STYLE_PRESETS 保持一致）
+instruments = { chords = 0, melody = 81, bass = 33, drums = 0 }
+# 引用 RhythmPatternRegistry 内置节奏型
+rhythm_pattern = "pop"
+melody_profile = { register = "C4-C6", interval_bias = "step", variation_strength = 0.3 }
+chord_preference = ["C-G-Am-F", "Am-F-C-G", "C-Am-F-G", "F-C-G-Am"]
+dsp_defaults = { fade_in_ms = 100, fade_out_ms = 300, normalize_dbfs = -1.0 }

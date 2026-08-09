@@ -1,0 +1,31 @@
+sequenceDiagram
+    autonumber
+    actor U as 用户
+    participant CLI as cli.py
+    participant CFG as Config
+    participant PR as ProjectRootResolver
+    participant PTR as PathResolver
+    participant R as FluidSynthRenderer
+    participant FS as fluidsynth 进程
+    participant DSP as DspProcessor(可选)
+
+    U->>CLI: smartnotegen render --input demo.mid
+    CLI->>CFG: load()（module 相对路径解析）
+    CFG->>PR: resolve() -> 项目根
+    PR-->>CFG: /path/to/SmartNoteGen
+    CLI->>PTR: PathResolver(cfg).ensure_ready()
+    PTR->>PTR: probe fluidsynth / soundfont / sf2_loadable
+    alt 全部 OK
+        PTR-->>CLI: OK
+    else 任一 MISSING/BROKEN
+        PTR-->>CLI: ModuleError(7) + 修复指引
+        CLI-->>U: 错误 [7] ...（退出码 7，无 mock 产物）
+    end
+    CLI->>R: render(demo.mid, soundfont, out.wav, dry_run=False)
+    R->>FS: subprocess fluidsynth -ni -F out.wav ...
+    FS-->>R: exit 0
+    R-->>CLI: wav_path
+    opt P2-1 启用时
+        CLI->>DSP: process(wav, DspOptions) -> 归一化/淡变
+    end
+    CLI-->>U: ✅ WAV 已渲染: out.wav

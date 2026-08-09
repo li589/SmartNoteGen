@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smartnotegen"
+version = "0.1.0"
+description = "本地 AI 音乐生成 CLI：程序化 MIDI → 渲染 WAV → Suno 合规导出"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "SmartNoteGen Team" }]
+keywords = ["music", "midi", "suno", "music21", "fluidsynth"]
+dependencies = [
+    "typer==0.27.1",
+    "music21==10.5.0",
+    "pretty-midi==0.2.11.post0",
+    "midi2audio==0.1.1",
+    "soundfile==0.14.0",
+    "numpy==2.5.1",
+    "tomli-w==1.2.0",
+]
+
+[project.optional-dependencies]
+mp3 = ["lameenc==1.8.4"]
+dev = ["pytest==9.1.1", "pytest-cov==7.1.0", "ruff==0.11.0"]
+
+[project.scripts]
+smartnotegen = "smartnotegen.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# 保留全部临时目录（沙箱下回收站不可用，禁止 pytest 安全删除临时目录）
+tmp_path_retention_policy = "all"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["smartnotegen"]
+omit = ["src/smartnotegen/__main__.py", "src/smartnotegen/ai/*"]
+
+[tool.coverage.report]
+fail_under = 80
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

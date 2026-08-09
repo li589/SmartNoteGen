@@ -1,0 +1,8 @@
+# 电子风格预设（P2-4 基线 3/4）
+name = "electronic"
+bpm_range = [120, 140]
+instruments = { chords = 88, melody = 81, bass = 38, drums = 0 }
+rhythm_pattern = "electronic"
+melody_profile = { register = "C4-C6", interval_bias = "step", variation_strength = 0.6 }
+chord_preference = ["Am-F-C-G", "F-G-Em-Am", "C-Am-F-G", "Dm-Bb-F-C"]
+dsp_defaults = { fade_in_ms = 60, fade_out_ms = 200, normalize_dbfs = -1.0 }

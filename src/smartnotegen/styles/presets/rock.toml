@@ -1,0 +1,8 @@
+# 摇滚风格预设（P2-4 基线 2/4）
+name = "rock"
+bpm_range = [120, 160]
+instruments = { chords = 25, melody = 80, bass = 34, drums = 0 }
+rhythm_pattern = "rock"
+melody_profile = { register = "C4-C6", interval_bias = "step", variation_strength = 0.5 }
+chord_preference = ["C-G-Am-F", "G-C-D-Em", "A-D-E-F", "E-C-G-D"]
+dsp_defaults = { fade_in_ms = 80, fade_out_ms = 250, normalize_dbfs = -1.0 }

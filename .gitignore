@@ -1,0 +1,29 @@
+# ===== Python / 构建产物 =====
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+
+# ===== 测试 / 临时 =====
+.pytest_tmp/
+.pytest_cache/
+htmlcov/
+
+# ===== WorkBuddy 内部（含项目记忆，勿入库）=====
+.workbuddy/
+
+# ===== 生成产物（MIDI/WAV/MP3/metadata）=====
+output/
+
+# ===== QA 测试残留（fluidsynth 改名探针）=====
+module/fluidsynth_qa_hidden/
+
+# ===== 根目录测试残留（test_generators 写入 CWD）=====
+/*.mid
+
+# ===== 系统文件 =====
+desktop.ini
+Thumbs.db

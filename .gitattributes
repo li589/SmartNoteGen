@@ -1,0 +1,4 @@
+module/**/*.sf2 filter=lfs diff=lfs merge=lfs -text
+module/**/*.dll filter=lfs diff=lfs merge=lfs -text
+module/**/*.exe filter=lfs diff=lfs merge=lfs -text
+module/**/*.ogg filter=lfs diff=lfs merge=lfs -text
