@@ -13,11 +13,9 @@ from __future__ import annotations
 import base64
 import json
 import math
-import struct
-import sys
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import soundfile as sf

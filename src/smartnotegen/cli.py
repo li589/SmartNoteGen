@@ -16,9 +16,10 @@
 from __future__ import annotations
 
 import functools
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
 
 import typer
 

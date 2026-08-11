@@ -11,7 +11,7 @@ import json
 import shutil
 import zipfile
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 
 def build_pack(
