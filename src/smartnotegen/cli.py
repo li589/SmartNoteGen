@@ -824,6 +824,302 @@ def _doctor_item(name: str, status: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# inspire（P3-C1 灵感库）
+# ---------------------------------------------------------------------------
+
+inspire_app = typer.Typer(help="灵感库管理（SQLite 存储）")
+app.add_typer(inspire_app, name="inspire")
+
+
+@inspire_app.command("init", help="初始化灵感库（创建 smartnotegen.db）")
+@_guard
+def inspire_init() -> None:
+    """创建灵感库数据库。"""
+    from smartnotegen.inspire import InspirationDB
+    path = InspirationDB().init_db()
+    typer.echo(f"✅ 灵感库已初始化: {path}")
+
+
+@inspire_app.command("add", help="添加灵感（从 WAV + 元数据提取）")
+@_guard
+def inspire_add(
+    wav_path: str = typer.Argument(..., help="WAV 文件路径"),
+    tags: str = typer.Option("", "--tags", help="标签（逗号分隔，如 upbeat,pop）"),
+    rating: Optional[int] = typer.Option(None, "--rating", help="评分 1-5"),
+) -> None:
+    """将 WAV 文件加入灵感库。"""
+    from smartnotegen.inspire import InspirationDB
+    insp_id = InspirationDB().add(wav_path, tags=tags, rating=rating)
+    typer.echo(f"✅ 灵感已添加 (id={insp_id})")
+
+
+@inspire_app.command("list", help="列出灵感")
+@_guard
+def inspire_list(
+    style: Optional[str] = typer.Option(None, "--style", help="按风格筛选"),
+    tag: Optional[str] = typer.Option(None, "--tag", help="按标签筛选"),
+    seed: Optional[int] = typer.Option(None, "--seed", help="按种子筛选"),
+    date: Optional[str] = typer.Option(None, "--date", help="按日期筛选（YYYYMMDD）"),
+    limit: int = typer.Option(50, "--limit", help="最大返回条数"),
+) -> None:
+    """列出灵感库中的条目。"""
+    from smartnotegen.inspire import InspirationDB
+    items = InspirationDB().list(style=style, tag=tag, seed=seed, date=date, limit=limit)
+    if not items:
+        typer.echo("（灵感库为空）")
+        return
+    for item in items:
+        tags_str = f" [{item['tags']}]" if item.get("tags") else ""
+        rating_str = f" ★{item['rating']}" if item.get("rating") else ""
+        style_str = item.get("style") or "?"
+        seed_str = f"seed={item['seed']}" if item.get("seed") is not None else ""
+        typer.echo(f"  #{item['id']:<4} {style_str:<12} {seed_str:<12} {item['path']}{tags_str}{rating_str}")
+
+
+@inspire_app.command("show", help="查看灵感详情")
+@_guard
+def inspire_show(
+    id: int = typer.Argument(..., help="灵感 id"),
+) -> None:
+    """显示灵感详情。"""
+    from smartnotegen.inspire import InspirationDB
+    insp = InspirationDB().get(id)
+    if not insp:
+        typer.echo(f"❌ 灵感不存在: id={id}")
+        raise typer.Exit(1)
+    typer.echo(f"  id:          {insp['id']}")
+    typer.echo(f"  路径:        {insp['path']}")
+    typer.echo(f"  风格:        {insp.get('style') or '-'}")
+    typer.echo(f"  BPM:         {insp.get('bpm') or '-'}")
+    typer.echo(f"  seed:        {insp.get('seed') or '-'}")
+    typer.echo(f"  和弦:        {insp.get('chords') or '-'}")
+    typer.echo(f"  时长:        {insp.get('duration_s') or '-'}s")
+    typer.echo(f"  采样率:      {insp.get('sample_rate') or '-'}Hz")
+    typer.echo(f"  RMS:         {insp.get('rms_db') or '-'} dBFS")
+    typer.echo(f"  峰值:        {insp.get('peak_db') or '-'} dBFS")
+    typer.echo(f"  标签:        {insp.get('tags') or '-'}")
+    typer.echo(f"  评分:        {insp.get('rating') or '-'}")
+    typer.echo(f"  创建时间:    {insp.get('created_at') or '-'}")
+
+
+@inspire_app.command("rm", help="删除灵感（仅从库中移除，不删文件）")
+@_guard
+def inspire_rm(
+    id: int = typer.Argument(..., help="灵感 id"),
+) -> None:
+    """从灵感库中移除。"""
+    from smartnotegen.inspire import InspirationDB
+    if InspirationDB().delete(id):
+        typer.echo(f"✅ 灵感 #{id} 已删除")
+    else:
+        typer.echo(f"❌ 灵感不存在: id={id}")
+        raise typer.Exit(1)
+
+
+@inspire_app.command("export", help="导出灵感文件到指定目录")
+@_guard
+def inspire_export(
+    id: int = typer.Argument(..., help="灵感 id"),
+    output: Path = typer.Option(..., "--output", "-o", help="目标目录"),
+) -> None:
+    """复制灵感文件到指定目录。"""
+    from smartnotegen.inspire import InspirationDB
+    try:
+        paths = InspirationDB().export_files(id, output)
+        typer.echo(f"✅ 已导出 {len(paths)} 个文件:")
+        for p in paths:
+            typer.echo(f"    {p}")
+    except (ValueError, FileNotFoundError) as exc:
+        typer.echo(f"❌ {exc}")
+        raise typer.Exit(1)
+
+
+# ---------------------------------------------------------------------------
+# diff（P3-C3 版本对比）
+# ---------------------------------------------------------------------------
+
+@app.command("diff", help="对比两个 WAV 的音频特征")
+@_guard
+def diff_cmd(
+    wav1: str = typer.Argument(..., help="第一个 WAV 路径"),
+    wav2: str = typer.Argument(..., help="第二个 WAV 路径"),
+) -> None:
+    """对比两个 WAV 的音频特征差异。"""
+    from smartnotegen.preview import compute_audio_features
+
+    p1 = Path(wav1).expanduser().resolve()
+    p2 = Path(wav2).expanduser().resolve()
+
+    if not p1.is_file():
+        from smartnotegen.exceptions import InputFileError
+        raise InputFileError(f"文件不存在: {p1}", code=3)
+    if not p2.is_file():
+        from smartnotegen.exceptions import InputFileError
+        raise InputFileError(f"文件不存在: {p2}", code=3)
+
+    f1 = compute_audio_features(p1)
+    f2 = compute_audio_features(p2)
+
+    typer.echo("音频特征对比")
+    typer.echo("═══════════════════════════════════════")
+    _diff_row("时长", _get_duration(p1), _get_duration(p2), "s")
+    _diff_row("RMS", f1.rms_db, f2.rms_db, "dBFS")
+    _diff_row("峰值", f1.peak_db, f2.peak_db, "dBFS")
+    _diff_row("频谱中心", f1.spectral_centroid, f2.spectral_centroid, "Hz")
+    typer.echo("")
+    typer.echo("频段能量:")
+    for band in ("low", "mid", "high"):
+        v1 = f1.band_energy.get(band, 0)
+        v2 = f2.band_energy.get(band, 0)
+        _diff_row(f"  {band}", f"{v1*100:.0f}%", f"{v2*100:.0f}%", "")
+
+    # 尝试从同目录 metadata.json 提取参数对比
+    _diff_metadata(p1, p2)
+
+
+def _diff_row(label: str, v1: Any, v2: Any, unit: str) -> None:
+    """打印一行对比。"""
+    diff_val = ""
+    if isinstance(v1, (int, float)) and isinstance(v2, (int, float)):
+        d = v2 - v1
+        sign = "+" if d > 0 else ""
+        diff_val = f" ({sign}{d:.2f}{unit})" if unit else f" ({sign}{d:.2f})"
+    typer.echo(f"  {label:<12} {v1}  →  {v2}{diff_val}")
+
+
+def _get_duration(wav_path: Path) -> float:
+    """获取 WAV 时长（秒）。"""
+    import soundfile as sf
+    try:
+        info = sf.info(str(wav_path))
+        return round(info.duration, 2)
+    except Exception:
+        return 0.0
+
+
+def _diff_metadata(p1: Path, p2: Path) -> None:
+    """尝试从 metadata.json 提取参数对比。"""
+    import json
+
+    def _get_params(wav_dir: Path) -> dict:
+        meta = wav_dir / "metadata.json"
+        if not meta.is_file():
+            return {}
+        try:
+            data = json.loads(meta.read_text(encoding="utf-8"))
+            for art in data.get("artifacts", []):
+                if art.get("kind") in ("wav", "suno"):
+                    return art.get("params", {})
+        except (json.JSONDecodeError, OSError):
+            pass
+        return {}
+
+    params1 = _get_params(p1.parent)
+    params2 = _get_params(p2.parent)
+
+    if params1 or params2:
+        typer.echo("")
+        typer.echo("参数对比:")
+        all_keys = set(params1.keys()) | set(params2.keys())
+        for k in sorted(all_keys):
+            v1 = params1.get(k, "-")
+            v2 = params2.get(k, "-")
+            if v1 != v2:
+                typer.echo(f"  {k:<15} {v1}  →  {v2}")
+
+
+# ---------------------------------------------------------------------------
+# new（P3-C2 参数引导 wizard）
+# ---------------------------------------------------------------------------
+
+@app.command("new", help="交互式引导生成新音乐（新手指南）")
+@_guard
+def new_cmd() -> None:
+    """交互式向导：引导用户逐步生成第一段音乐。"""
+    import sys as _sys
+
+    # 非 TTY：直接执行 pipeline 默认参数
+    if not _sys.stdin.isatty():
+        from smartnotegen.pipeline import Pipeline
+        from smartnotegen.config import Config
+        from smartnotegen.generators.base import GenerationRequest
+        from smartnotegen.export.suno import ExportOptions
+
+        cfg = Config.load()
+        pipeline = Pipeline(cfg)
+        result = pipeline.run(
+            GenerationRequest(seed=42),
+            ExportOptions(duration=25),
+        )
+        typer.echo(f"✅ Pipeline 完成: {result.export_path}")
+        return
+
+    typer.echo("🎵 SmartNoteGen 创作向导")
+    typer.echo("按回车使用默认值，或输入自定义值")
+    typer.echo("")
+
+    # 步骤 1：风格
+    style = _prompt("风格", "pop", ["pop", "rock", "electronic", "classical"])
+
+    # 步骤 2：BPM
+    bpm_str = _prompt("BPM", "120")
+    bpm = int(bpm_str) if bpm_str.isdigit() else 120
+
+    # 步骤 3：和弦
+    chords = _prompt("和弦进行", "C-G-Am-F")
+
+    # 步骤 4：时长
+    dur_str = _prompt("Suno 导出时长 (10-30s)", "25")
+    duration = max(10, min(30, int(dur_str) if dur_str.isdigit() else 25))
+
+    # 步骤 5：小节数
+    bars_str = _prompt("小节数", "8")
+    bars = max(1, min(64, int(bars_str) if bars_str.isdigit() else 8))
+
+    # 确认
+    typer.echo("")
+    typer.echo("📋 确认参数:")
+    typer.echo(f"  风格: {style}")
+    typer.echo(f"  BPM: {bpm}")
+    typer.echo(f"  和弦: {chords}")
+    typer.echo(f"  时长: {duration}s")
+    typer.echo(f"  小节: {bars}")
+    confirm = input("执行？[Y/n] ").strip().lower()
+    if confirm in ("n", "no"):
+        typer.echo("已取消")
+        return
+
+    # 执行
+    from smartnotegen.pipeline import Pipeline
+    from smartnotegen.config import Config
+    from smartnotegen.generators.base import GenerationRequest
+    from smartnotegen.export.suno import ExportOptions
+
+    cfg = Config.load()
+    merged = cfg.merge_cli(style=style, bpm=bpm, chords=chords, bars=bars)
+    pipeline = Pipeline(merged)
+    result = pipeline.run(
+        GenerationRequest(style=style, bpm=bpm, chords=chords, bars=bars, seed=42),
+        ExportOptions(duration=duration),
+    )
+    typer.echo(f"✅ 完成: {result.export_path}")
+    typer.echo(f"   预览页: {Path(result.export_path).parent / 'preview.html'}")
+    typer.echo("   提示: 用 smartnotegen inspire add <path> 保存为灵感")
+
+
+def _prompt(label: str, default: str, choices: Optional[list[str]] = None) -> str:
+    """交互式提示输入。"""
+    choices_hint = f" ({', '.join(choices)})" if choices else ""
+    val = input(f"  {label}{choices_hint} [{default}]: ").strip()
+    if not val:
+        return default
+    if choices and val not in choices:
+        typer.echo(f"  ⚠️ 可选值: {', '.join(choices)}，使用默认值 {default}")
+        return default
+    return val
+
+
+# ---------------------------------------------------------------------------
 # errors（P2-3 错误码表）
 # ---------------------------------------------------------------------------
 
