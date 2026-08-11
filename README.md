@@ -61,9 +61,10 @@ smartnotegen pipeline
 | `pipeline` | 一键闭环 generate→render→export | `smartnotegen pipeline`（零参数 demo） |
 | `config init` | 生成配置文件模板 | `smartnotegen config init` |
 | `config show` | 打印合并后的生效配置 | `smartnotegen config show` |
-| `batch` | 批量生成多个变体（P1-3 骨架） | `smartnotegen batch --count 5` |
-| `ai musicgen` | MusicGen 扩编曲（P1） | `smartnotegen ai musicgen --input m.wav --prompt "upbeat pop"` |
-| `ai diffrhythm` | DiffRhythm 歌曲草稿（P1） | `smartnotegen ai diffrhythm --prompt "slow ballad"` |
+| `batch` | 批量生成多个变体（随机化 + 可复现 + 失败隔离） | `smartnotegen batch --count 5 --seed 42` |
+| `ai musicgen` | MusicGen 扩编曲（旋律 → 伴奏） | `smartnotegen ai musicgen --input m.wav --prompt "upbeat pop"` |
+| `ai diffrhythm` | DiffRhythm 歌曲草稿（风格提示 → 带人声歌曲） | `smartnotegen ai diffrhythm --prompt "slow ballad"` |
+| `errors` | 打印错误码表 | `smartnotegen errors` |
 
 完整参数说明见 [docs/usage.md](docs/usage.md)。
 
@@ -93,16 +94,41 @@ smartnotegen --config my.toml generate midi   # 指定配置文件
 | 3 | 输入文件错误（.mid/.wav 不存在或无法解析） |
 | 4 | 渲染失败（fluidsynth 未安装/找不到/进程失败） |
 | 5 | 导出失败（时长越界 10–30s、MP3 编码器缺失） |
-| 6 | AI 模块不可用（P1 依赖未安装） |
+| 6 | AI 模块不可用（依赖未装 / 显存不足 / DiffRhythm NO-GO） |
+| 7 | 渲染环境不完整（module 缺失/损坏、SF2 不可加载） |
+| 8 | 批量部分失败 |
+| 9 | 批量全部失败 |
 
 ---
 
 ## P1 AI 集成（可选）
 
+> AI 依赖默认不安装（P0/P1-非AI 环境零 torch import）。安装后使用：
+
 ```bash
-pip install torch --index-url https://download.pytorch.org/whl/cu121
+# 1. CUDA 版 torch + torchaudio（RTX 4060 / CUDA 12.1；务必用 cu121 索引避免装回 CPU 版）
+pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# 2. 其余 AI 依赖（audiocraft / DiffRhythm 运行库）
 pip install -r requirements/ai.txt
-# Windows 另需安装 espeak-ng 并加入 PATH（DiffRhythm 人声合成）
+
+# 3. DiffRhythm 仓库（官方不可 pip 安装，需手动克隆到 module/diffrhythm 或设置 DIFFRHYTHM_DIR）
+git clone https://github.com/ASLP-lab/DiffRhythm.git module/diffrhythm
+
+# 4. Windows：DiffRhythm 人声合成依赖 espeak-ng（下载 .msi 安装并加入 PATH）
+#    https://github.com/espeak-ng/espeak-ng/releases
+
+# 5. 权重下载较慢时使用国内镜像（首次需下载数 GB 权重）
+set HF_ENDPOINT=https://hf-mirror.com
+```
+
+**用法示例：**
+```bash
+# MusicGen：以旋律 WAV 为条件扩编曲（medium fp16 默认；显存不足可 --model-size small）
+smartnotegen ai musicgen --input melody.wav --prompt "upbeat pop" --output acc.wav --duration 20 --seed 42
+
+# DiffRhythm：风格提示 → ≥60s 带人声歌曲草稿（chunked=True 默认；草稿不进 Suno 导出链）
+smartnotegen ai diffrhythm --prompt "slow ballad" --lyrics "第一句词" --duration 95
 ```
 
 详见 [docs/ai-integration.md](docs/ai-integration.md)。

@@ -54,19 +54,19 @@ def test_procedural_with_drums():
     assert all(36 <= n.pitch <= 42 for n in drums.notes)
 
 
-def test_procedural_reproducible_same_seed():
+def test_procedural_reproducible_same_seed(tmp_path):
     """相同 seed -> .mid 字节级一致。"""
     req = GenerationRequest(seed=42, chords="C-G-Am-F", bars=8)
-    a = _write_midi(ProceduralGenerator(seed=42).generate(req), Path("a.mid"))
-    b = _write_midi(ProceduralGenerator(seed=42).generate(req), Path("b.mid"))
+    a = _write_midi(ProceduralGenerator(seed=42).generate(req), tmp_path / "a.mid")
+    b = _write_midi(ProceduralGenerator(seed=42).generate(req), tmp_path / "b.mid")
     assert a.read_bytes() == b.read_bytes()
 
 
-def test_procedural_different_seed_differs():
+def test_procedural_different_seed_differs(tmp_path):
     """不同 seed -> 结果不同。"""
     req = GenerationRequest(seed=1, bars=8)
-    a = _write_midi(ProceduralGenerator(seed=1).generate(req), Path("c.mid"))
-    b = _write_midi(ProceduralGenerator(seed=2).generate(req), Path("d.mid"))
+    a = _write_midi(ProceduralGenerator(seed=1).generate(req), tmp_path / "c.mid")
+    b = _write_midi(ProceduralGenerator(seed=2).generate(req), tmp_path / "d.mid")
     assert a.read_bytes() != b.read_bytes()
 
 
@@ -138,9 +138,9 @@ def test_melody_variations_distinguishable():
         assert [n.pitch for n in t.notes] != [n.pitch for n in main]
 
 
-def test_melody_reproducible_same_seed():
+def test_melody_reproducible_same_seed(tmp_path):
     """music21 旋律同 seed -> 字节级一致。"""
     req = GenerationRequest(seed=9, chords="C-G-Am-F", bars=8, variations=2)
-    a = _write_midi(Music21MelodyGenerator(seed=9).generate(req), Path("e.mid"))
-    b = _write_midi(Music21MelodyGenerator(seed=9).generate(req), Path("f.mid"))
+    a = _write_midi(Music21MelodyGenerator(seed=9).generate(req), tmp_path / "e.mid")
+    b = _write_midi(Music21MelodyGenerator(seed=9).generate(req), tmp_path / "f.mid")
     assert a.read_bytes() == b.read_bytes()

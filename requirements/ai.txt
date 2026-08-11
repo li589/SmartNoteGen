@@ -1,16 +1,43 @@
 # P1 AI 依赖（二期 AI 冲刺；默认不安装！P0/P1-非AI 环境不得安装本文件）
 # 安装顺序（重要）：
-#   1. 先装 CUDA 版 torch（RTX 4060 / CUDA 12.1）：
-#        pip install torch --index-url https://download.pytorch.org/whl/cu121
+#   1. 先装 CUDA 版 torch + torchaudio（RTX 4060 / CUDA 12.1，务必用 cu121 索引避免装回 CPU 版）：
+#        pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
 #   2. 再装其余：
 #        pip install -r requirements/ai.txt
 #
-# 注意：DiffRhythm 官方 requirements.txt 默认 torch 为 CPU 版，必须换装上面的 CUDA 版。
-# 以下版本为 P2-3 锁定基线（二期冲刺时以实际 spike 结论微调）。
+# 注意：
+#   - DiffRhythm 官方仓库不可 pip 安装（无 setup.py/pyproject.toml），需手动克隆：
+#        git clone https://github.com/ASLP-lab/DiffRhythm.git module/diffrhythm
+#     并安装其 requirements.txt 中的运行依赖（下方已列出等价清单，去除 torch/torchaudio
+#     以免覆盖 cu121 版；torchaudio 版本须与 cu121 torch 匹配，如 torch 2.5.1 -> torchaudio 2.5.1）。
+#   - 适配器通过环境变量 DIFFRHYTHM_DIR 或默认路径 module/diffrhythm 定位仓库。
+#   - 权重下载较慢时设置环境变量 HF_ENDPOINT=https://hf-mirror.com（国内镜像）。
 
-# torch（CUDA 12.1 构建；以 pip 安装为准，不在此文件锁定 pip 索引）
-# audiocraft / diffrhythm 为 git 依赖，锁定 commit 需在二期 spike 时确认后回填
-audiocraft@git+https://github.com/facebookresearch/audiocraft.git   # MusicGen
-diffrhythm@git+https://github.com/ASLP-lab/DiffRhythm.git           # DiffRhythm（Apache 2.0）
+# --- MusicGen（audiocraft，git 依赖） ---
+audiocraft@git+https://github.com/facebookresearch/audiocraft.git
 transformers==4.40.0
 diffusers==0.27.0
+
+# --- DiffRhythm 运行依赖（等价于官方 requirements.txt，去掉 torch/torchaudio） ---
+accelerate==1.4.0
+torchdiffeq==0.2.5
+x-transformers==2.1.2
+transformers==4.49.0
+librosa==0.10.2.post1
+pyarrow==19.0.1
+pandas==2.2.3
+pylance==0.23.2
+ema-pytorch==0.7.7
+prefigure==0.0.10
+bitsandbytes
+muq==0.1.0
+mutagen==1.47.0
+pykakasi==2.3.0
+jieba==0.42.1
+cn2an==0.5.23
+pypinyin==0.53.0
+onnxruntime
+Unidecode==1.3.8
+phonemizer==3.3.0
+inflect==7.5.0
+py3langid

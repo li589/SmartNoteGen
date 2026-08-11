@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import pytest
 from typer.testing import CliRunner
 
 from smartnotegen.cli import app
@@ -156,8 +155,14 @@ def test_export_suno_cli(tmp_project, sine_wav):
     assert Path("suno.wav").is_file()
 
 
-def test_ai_musicgen_exit_6(tmp_project):
-    """P0 环境 ai musicgen -> 明确提示安装 P1 依赖，退出码 6。"""
+def test_ai_musicgen_exit_6(tmp_project, monkeypatch):
+    """AI 依赖未安装时 ai musicgen -> 明确提示安装 P1 依赖，退出码 6。
+
+    通过 monkeypatch find_spec 保证与真实环境（是否已装 torch/audiocraft）无关。
+    """
+    import importlib.util
+
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
     result = runner.invoke(
         app, ["ai", "musicgen", "--input", "x.wav", "--prompt", "upbeat pop"]
     )
@@ -165,9 +170,67 @@ def test_ai_musicgen_exit_6(tmp_project):
     assert "requirements/ai.txt" in result.output
 
 
-def test_ai_diffrhythm_exit_6(tmp_project):
+def test_ai_musicgen_writes_metadata(tmp_project, monkeypatch, tmp_path):
+    """ai musicgen 成功后落盘 metadata.json（kind=draft, contains_vocals=false, sample_rate=32000）。"""
+    from smartnotegen.ai.musicgen import MusicGenAdapter
+
+    out_wav = tmp_path / "acc.wav"
+    out_wav.write_bytes(b"RIFF\x00\x00\x00\x00fake-wav")
+
+    def fake_generate(self, source_wav, prompt, **_kw):
+        return str(out_wav)
+
+    monkeypatch.setattr(MusicGenAdapter, "generate", fake_generate)
+    result = runner.invoke(
+        app, ["ai", "musicgen", "--input", "m.wav", "--prompt", "upbeat pop",
+              "--output", str(out_wav)]
+    )
+    assert result.exit_code == 0, result.output
+    metas = list(Path("output").rglob("metadata.json"))
+    assert len(metas) == 1
+    import json
+
+    data = json.loads(metas[0].read_text(encoding="utf-8"))
+    art = data["artifacts"][0]
+    assert art["kind"] == "draft"
+    assert art["contains_vocals"] is False
+    assert art["sample_rate"] == 32000
+    assert art["path"] == str(out_wav)
+
+
+def test_ai_diffrhythm_exit_6(tmp_project, monkeypatch):
+    """AI 依赖未安装时 ai diffrhythm -> 明确提示 + 退出码 6（环境无关）。"""
+    import importlib.util
+
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
     result = runner.invoke(app, ["ai", "diffrhythm", "--prompt", "slow ballad"])
     assert result.exit_code == 6
+
+
+def test_ai_diffrhythm_writes_metadata(tmp_project, monkeypatch, tmp_path):
+    """ai diffrhythm 成功后元数据标注 contains_vocals=true（草稿不进 Suno 链）。"""
+    from smartnotegen.ai.diffrhythm import DiffRhythmAdapter
+
+    out_wav = tmp_path / "song.wav"
+    out_wav.write_bytes(b"RIFF\x00\x00\x00\x00fake-wav")
+
+    def fake_generate(self, source_wav, prompt, **_kw):
+        return str(out_wav)
+
+    monkeypatch.setattr(DiffRhythmAdapter, "generate", fake_generate)
+    result = runner.invoke(
+        app, ["ai", "diffrhythm", "--prompt", "slow ballad", "--output", str(out_wav)]
+    )
+    assert result.exit_code == 0, result.output
+    metas = list(Path("output").rglob("metadata.json"))
+    assert len(metas) == 1
+    import json
+
+    data = json.loads(metas[0].read_text(encoding="utf-8"))
+    art = data["artifacts"][0]
+    assert art["kind"] == "draft"
+    assert art["contains_vocals"] is True
+    assert art["sample_rate"] == 44100
 
 
 def test_batch_full_cli(tmp_project):
@@ -181,11 +244,14 @@ def test_batch_full_cli(tmp_project):
         assert f.stat().st_size > 0
 
 
-def test_ai_adapters_unavailable_in_p0():
-    """P0 环境下 AI 适配器 is_available() 均为 False。"""
+def test_ai_adapters_unavailable_in_p0(monkeypatch):
+    """AI 依赖缺失时 is_available() 均为 False（monkeypatch find_spec，环境无关）。"""
+    import importlib.util
+
     from smartnotegen.ai.diffrhythm import DiffRhythmAdapter
     from smartnotegen.ai.musicgen import MusicGenAdapter
 
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
     assert MusicGenAdapter().is_available() is False
     assert DiffRhythmAdapter().is_available() is False
 

@@ -27,3 +27,8 @@ module/fluidsynth_qa_hidden/
 # ===== 系统文件 =====
 desktop.ini
 Thumbs.db
+
+# ===== AI 权重 / DiffRhythm 仓库（可重新下载，不入库）=====
+module/diffrhythm/
+module/espeak-install.log
+spike/

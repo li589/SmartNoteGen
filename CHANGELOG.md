@@ -2,6 +2,22 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 风格。
 
+## [0.2.0] - 2025-08-09（P1 二期 AI 冲刺）
+
+### 新增（T-S1 / T-P1-1 / T-P1-2）
+
+- **T-S1 DiffRhythm spike（8GB 显存）**：完成 CUDA torch（2.5.1+cu121）+ espeak-ng 1.52.0 安装与验证、权重经 hf-mirror 下载（约 7.5GB）、`chunked=True` 补丁落地与实测推理；报告归档于 `docs/ai-integration.md` §4（峰值显存 / 95s 耗时 / 音质 / GO-NO-GO）。
+- **T-P1-1 MusicGen 适配器完整实现**：`ai musicgen` 支持旋律 WAV 条件扩编曲（`generate_with_chroma`）、默认 medium fp16 / `--model-size small` 降档、显存检查防 OOM（不足提示降档建议）、`--seed` 可复现（实测字节级一致）、输出 32kHz WAV 可被 `export suno` 消费；延迟导入 audiocraft，未装依赖退出码 6 并给出安装指引。**实测修正**：audiocraft 仅 `facebook/musicgen-melody`（1.5B）支持旋律条件，因此 `--model-size medium` 映射到 musicgen-melody；`small`（300M）不支持 chroma，自动降级为纯文本生成。性能基线：20s 输出峰值显存 5530 MiB、chroma 相关 0.706。
+- **T-P1-2 DiffRhythm 适配器完整实现**：`ai diffrhythm` 支持风格提示 + `--lyrics` 歌词生成 ≥60s 带人声歌曲草稿（`chunked=True` 默认，自动注入补丁）；`--duration` 支持 95 或 96-285s；`--device cuda|cpu`；显存 <8GB 明确提示（退出码 6）；**草稿不自动进 Suno 导出链**（含人声，仅本地听感预览），元数据标注 `contains_vocals=true`。
+- **AI 环境落地**：`requirements/ai.txt` 更新（DiffRhythm 官方不可 pip 安装 → 改为仓库克隆说明 + 运行依赖清单）；espeak-ng Windows 说明（含 `PHONEMIZER_ESPEAK_LIBRARY` DLL 定位）；hf-mirror 权重下载指引。
+- **测试**：新增 `tests/test_ai_musicgen.py`（15 例）+ `tests/test_ai_diffrhythm.py`（17 例）+ `tests/test_cli.py` AI 元数据用例（2 例），全部 mock 大模型（不真跑、不依赖 GPU/权重，无 GPU 环境可跑）；既有 207 测试全绿，全量 **241 用例**，覆盖率 **91%**。
+- **文档**：`docs/ai-integration.md` spike 报告 + MusicGen 性能基线；`docs/usage.md` ai 子命令参数（`--model-size/--lyrics/--duration/--device`）；README AI 安装指引（含 DiffRhythm 仓库克隆 / espeak-ng / hf-mirror）。
+
+### 说明
+
+- 既有 3 个 P0 环境假设测试（`test_ai_musicgen_exit_6` / `test_ai_diffrhythm_exit_6` / `test_ai_adapters_unavailable_in_p0`）改为 monkeypatch find_spec，保证在"已安装 AI 依赖"的环境（如本机二期环境）与"未安装"环境均稳定通过。
+- 覆盖率配置：`pyproject.toml` 不再 omit `src/smartnotegen/ai/*`（AI 模块测试计入覆盖率；AI 适配器顶部零 torch import，推理路径由 mock 测试覆盖）。
+
 ## [0.1.0] - 2025-08-09（P1 一期非 AI 冲刺增量）
 
 ### 新增（P0 里程碑）

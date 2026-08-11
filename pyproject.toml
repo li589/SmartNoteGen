@@ -42,7 +42,9 @@ filterwarnings = [
 
 [tool.coverage.run]
 source = ["smartnotegen"]
-omit = ["src/smartnotegen/__main__.py", "src/smartnotegen/ai/*"]
+# 二期起 AI 模块测试计入覆盖率（AI 适配器顶部零 torch import；推理路径由 mock 测试覆盖）。
+# 因此不再 omit src/smartnotegen/ai/*。
+omit = ["src/smartnotegen/__main__.py"]
 
 [tool.coverage.report]
 fail_under = 80

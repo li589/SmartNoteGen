@@ -128,14 +128,43 @@ smartnotegen batch --count 5 --seed 42
 
 P0 版本提示"批量生成属于 P1-3 里程碑"（退出码 1）。
 
-### 2.8 `ai musicgen` / `ai diffrhythm`（P1 骨架）
+### 2.8 `ai musicgen` / `ai diffrhythm`（P1 二期）
 
 ```bash
-smartnotegen ai musicgen --input melody.wav --prompt "upbeat pop"
-smartnotegen ai diffrhythm --prompt "slow ballad"
+# MusicGen：以旋律 WAV 为条件扩编曲/生成器乐伴奏
+smartnotegen ai musicgen --input melody.wav --prompt "upbeat pop" \
+                         [--output out.wav] [--duration 20] [--model-size medium|small] \
+                         [--seed N] [--device cuda|cpu]
+
+# DiffRhythm：风格提示（+ 可选歌词）→ 完整歌曲草稿（带人声）
+smartnotegen ai diffrhythm --prompt "slow ballad" \
+                           [--input ref.wav] [--output song.wav] \
+                           [--lyrics "歌词"] [--duration 95] [--device cuda|cpu]
 ```
 
-P0 环境未安装 P1 依赖 → 明确提示安装 `requirements/ai.txt`（含 CUDA 版 torch），退出码 6。
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `ai musicgen --input` | 必填 | 输入旋律 WAV（melody conditioning 条件） |
+| `ai musicgen --prompt` | 必填 | 风格提示，如 `"upbeat pop"` |
+| `ai musicgen --output` | 输入旁 `*_musicgen.wav` | 输出伴奏 WAV（32kHz） |
+| `ai musicgen --duration` | 对齐输入（10–30s） | 目标时长（秒），越界退出码 1 |
+| `ai musicgen --model-size` | `medium` | `medium`（映射 `facebook/musicgen-melody`，1.5B fp16，支持旋律条件）/ `small`（300M 降档；不支持旋律条件，自动降级为纯文本生成） |
+| `ai musicgen --seed` | 随机 | 随机种子（同参数 + 同 seed 可复现） |
+| `ai musicgen --device` | `cuda` | `cuda` / `cpu`（CPU 较慢） |
+| `ai diffrhythm --prompt` | 必填 | 风格提示，如 `"slow ballad"` |
+| `ai diffrhythm --input` | 可选 | 参考音频 WAV（当前版本保留接口，实际以风格提示为主） |
+| `ai diffrhythm --output` | 自动命名 | 输出歌曲草稿 WAV（44.1kHz，含人声） |
+| `ai diffrhythm --lyrics` | 空（哼唱） | 歌词纯文本（行分隔），自动转为 LRC 时间戳 |
+| `ai diffrhythm --duration` | 95 | 目标时长：**95 或 96–285s**（官方限制），非法退出码 1 |
+| `ai diffrhythm --device` | `cuda` | `cuda` / `cpu` |
+
+**行为与合规：**
+- MusicGen 输出 32kHz WAV，可被 `export suno` 消费（导出链内部重采样到 44.1kHz）。
+- MusicGen 默认 `medium` 实际加载 `facebook/musicgen-melody`（1.5B，支持旋律条件 `generate_with_chroma`；`musicgen-medium` 不支持 chroma，属实测修正）；`small` 降档为 300M 纯文本生成（不包含旋律对齐）。
+- MusicGen 显存不足时给出友好提示与降档建议（`--model-size small`），不崩溃（退出码 6）。
+- DiffRhythm 使用 `chunked=True` 分块推理（8GB 显存必需，适配器自动注入补丁，无需手动改脚本）；依赖 espeak-ng（Windows 需 .msi 安装并加入 PATH）；显存 <8GB 时明确提示不可用（退出码 6）。
+- **DiffRhythm 草稿（含人声）不自动进入 Suno 导出链**（违反纯器乐合规），用途为"本地听感预览"。
+- 未安装 AI 依赖时，两命令给出安装指引并退出码 6，不触发 torch import。
 
 ---
 
@@ -175,9 +204,12 @@ seed = null
 | 退出码 | 含义 | 排查 |
 |---|---|---|
 | 0 | 成功 | — |
-| 1 | 参数/通用错误 | 检查和弦符号、参数组合 |
+| 1 | 参数/通用错误 | 检查和弦符号、参数组合、`ai` 时长越界 |
 | 2 | 配置错误 | `config show` 查看生效配置；检查 SoundFont 路径 |
 | 3 | 输入文件错误 | 确认 .mid/.wav 存在且可解析 |
 | 4 | 渲染失败 | 安装 fluidsynth（README 指引）并配置路径 |
 | 5 | 导出失败 | 时长需在 10–30s；mp3 需 `pip install lameenc` |
-| 6 | AI 不可用 | `pip install -r requirements/ai.txt`（含 CUDA torch） |
+| 6 | AI 不可用 | 安装 `requirements/ai.txt`（含 CUDA torch）；DiffRhythm 还需 espeak-ng + 仓库 + ≥8GB 显存 |
+| 7 | 渲染环境不完整 | 确认 `module/fluidsynth` 与 SoundFont 存在/可加载；或 `--soundfont`/`--fluidsynth` 覆盖 |
+| 8 | 批量部分失败 | 查看失败项日志，成功项不受影响 |
+| 9 | 批量全部失败 | 查看错误日志，检查参数与环境 |

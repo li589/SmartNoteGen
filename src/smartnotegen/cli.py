@@ -700,7 +700,7 @@ def ai_musicgen(
     input: Path = typer.Option(..., "--input", "-i", help="旋律 WAV 路径"),
     prompt: str = typer.Option(..., "--prompt", help="风格提示，如 'upbeat pop'"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="输出 WAV 路径"),
-    model_size: Optional[str] = typer.Option(None, "--model-size", help="medium|small（二期实现）"),
+    model_size: Optional[str] = typer.Option(None, "--model-size", help="medium|small（默认 medium，显存不足可 small 降档）"),
     duration: Optional[int] = typer.Option(None, "--duration", help="目标时长（默认对齐输入）"),
     seed: Optional[int] = typer.Option(None, "--seed", help="随机种子"),
     device: Optional[str] = typer.Option(None, "--device", help="cuda|cpu"),
@@ -716,6 +716,20 @@ def ai_musicgen(
         output_path=str(output) if output else None,
         duration=duration, seed=seed,
     )
+    _write_single_metadata(
+        cfg,
+        command=f"smartnotegen ai musicgen --input {input} --prompt {prompt!r}",
+        seed=seed,
+        artifacts=[
+            ArtifactMeta(
+                path=path, kind="draft",
+                params={"prompt": prompt, "model_size": merged.ai.model_size,
+                        "duration": duration},
+                seed=seed, seq=1, duration_s=0.0, sample_rate=32000,
+                contains_vocals=False,
+            )
+        ],
+    )
     typer.echo(f"✅ 伴奏 WAV 已生成: {path}")
 
 
@@ -726,7 +740,7 @@ def ai_diffrhythm(
     prompt: str = typer.Option(..., "--prompt", help="风格提示，如 'slow ballad'"),
     input: Optional[Path] = typer.Option(None, "--input", "-i", help="可选旋律 WAV 路径"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="输出 WAV 路径"),
-    lyrics: Optional[str] = typer.Option(None, "--lyrics", help="歌词（二期实现）"),
+    lyrics: Optional[str] = typer.Option(None, "--lyrics", help="歌词（纯文本，行分隔；不传为空词哼唱）"),
     duration: Optional[int] = typer.Option(None, "--duration", help="目标时长（默认 95s）"),
     device: Optional[str] = typer.Option(None, "--device", help="cuda|cpu"),
 ) -> None:
@@ -741,5 +755,19 @@ def ai_diffrhythm(
         src, prompt,
         output_path=str(output) if output else None,
         lyrics=lyrics, duration=duration,
+    )
+    _write_single_metadata(
+        cfg,
+        command=f"smartnotegen ai diffrhythm --prompt {prompt!r}",
+        seed=None,
+        artifacts=[
+            ArtifactMeta(
+                path=path, kind="draft",
+                params={"prompt": prompt, "lyrics": bool(lyrics), "duration": duration,
+                        "chunked": merged.ai.diffrhythm_chunked},
+                seed=None, seq=1, duration_s=0.0, sample_rate=44100,
+                contains_vocals=True,
+            )
+        ],
     )
     typer.echo(f"✅ 歌曲草稿已生成: {path}")
