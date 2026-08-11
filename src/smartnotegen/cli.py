@@ -506,6 +506,51 @@ def export_suno(
     typer.echo(f"   元数据: 时长 {meta['duration_s']}s / {meta['sample_rate']}Hz / {meta['bit_depth']}bit / {meta['channels']}ch")
 
 
+@export_app.command("suno-pack", help="批量导出 Suno 片段 + 打包（P3-B2）")
+@_guard
+def export_suno_pack(
+    inputs: List[str] = typer.Argument(..., help="WAV 文件路径（可多个）"),
+    output_dir: Path = typer.Option(Path("output"), "--output-dir", "-o", help="打包输出目录"),
+    pack_name: str = typer.Option("suno_pack", "--name", help="打包目录名"),
+    no_zip: bool = typer.Option(False, "--no-zip", help="不生成 zip"),
+) -> None:
+    """将多个 Suno 合规片段 + metadata 打包成可上传目录（+ zip）。"""
+    from smartnotegen.sunopack import build_pack
+
+    result = build_pack(
+        inputs,
+        output_dir,
+        pack_name=pack_name,
+        make_zip=not no_zip,
+    )
+    if not result["files"]:
+        typer.echo("❌ 没有可打包的 WAV 文件")
+        raise typer.Exit(1)
+    typer.echo(f"✅ 打包完成: {result['pack_dir']}")
+    typer.echo(f"   文件数: {len(result['files'])}")
+    typer.echo(f"   清单: {result['manifest_path']}")
+    if result["zip_path"]:
+        typer.echo(f"   zip: {result['zip_path']}")
+
+
+@export_app.command("suno-manifest", help="生成 Suno 上传清单（CSV/JSON，P3-B3）")
+@_guard
+def export_suno_manifest(
+    inputs: List[str] = typer.Argument(..., help="WAV 文件路径（可多个）"),
+    output: Path = typer.Option(Path("suno_upload_manifest.csv"), "--output", "-o", help="清单输出路径"),
+    format: str = typer.Option("csv", "--format", help="csv|json"),
+) -> None:
+    """生成 Suno 上传清单，指引用户逐个上传。"""
+    from smartnotegen.sunopack import write_upload_manifest
+
+    if format not in ("csv", "json"):
+        typer.echo("❌ --format 可选 csv|json")
+        raise typer.Exit(1)
+    path = write_upload_manifest(inputs, output, format=format)
+    typer.echo(f"✅ 上传清单已生成: {path}")
+    typer.echo("   打开 Suno 后，按清单逐行上传片段即可。")
+
+
 # ---------------------------------------------------------------------------
 # pipeline
 # ---------------------------------------------------------------------------

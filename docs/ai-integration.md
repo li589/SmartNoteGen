@@ -106,3 +106,41 @@ smartnotegen ai musicgen --input m.wav --prompt "upbeat pop"
 # 验证未触发 torch import：
 python -c "import sys; import smartnotegen.cli; assert 'torch' not in sys.modules"
 ```
+
+---
+
+## 6. Suno API 调研（P3-B1）
+
+> 调研日期：2026-08-12 | 调研人：吴八哥
+
+### 结论：Suno 官方 API 已开放
+
+Suno 提供了完整的 REST API，支持歌曲生成、扩展、翻唱、添加人声/伴奏等能力。
+
+### 关键信息
+
+| 项 | 内容 |
+|---|---|
+| 基础 URL | `https://studio-api.suno.ai/api/` |
+| 认证方式 | Bearer Token（在 Suno Dashboard → Settings → API Keys 获取） |
+| 生成端点 | `POST /generate/v2/` |
+| 轮询状态 | `GET /feed/?ids=...` |
+| 模型版本 | `chirp-v3-5`（默认）、`chirp-v4` |
+| 价格 | Free 5次/天，Pro 500次/天，Premier 不限量 |
+| 每次生成 | 2 个变体，消耗 10 credits |
+| 代码示例 | Python SDK 见 neural-audio-theory 文档 |
+
+### 可选集成方案
+
+| 方案 | 复杂度 | 说明 |
+|---|---|---|
+| **A. 直接集成** | 中 | 在 SmartNoteGen 中新增 `ai suno` 子命令，调用 Suno API 上传本地产出片段，作为 Melody Lock 输入 |
+| **B. 独立脚本** | 低 | 提供独立的 Python 脚本（`scripts/suno_upload.py`），用户自行配置 API Key 后调用 |
+| **C. 保持现状** | 无 | 用户手动上传，SmartNoteGen 只负责打包 + 清单辅助 |
+
+### 推荐
+
+**方案 B（独立脚本）** 作为 P3-B1 的落地方式，因为：
+- Suno API 需要用户自行申请 API Key，集成到 CLI 会增加认证复杂度
+- 独立脚本更灵活，用户可按需修改
+- 不增加 SmartNoteGen 核心代码的依赖
