@@ -129,3 +129,55 @@ def test_spectrogram_empty_for_short_audio(tmp_path):
     audio, sr = gen._load_audio(wav)
     spec = gen._compute_spectrogram(audio, sr)
     assert spec == []
+
+
+def test_audio_to_base64_roundtrip(tmp_path):
+    """base64 编解码往返。"""
+    wav = _write_sine_wav(tmp_path)
+    gen = PreviewGenerator()
+    b64 = gen._audio_to_base64(wav)
+    assert len(b64) > 0
+    import base64
+    data = base64.b64decode(b64)
+    # WAV 文件头 "RIFF"
+    assert data[:4] == b"RIFF"
+
+
+def test_generate_for_auto_label(tmp_path):
+    """不传 label 时使用文件名。"""
+    wav = _write_sine_wav(tmp_path)
+    gen = PreviewGenerator()
+    gen.generate_for(wav, {}, tmp_path / "out2")
+    html = (tmp_path / "out2" / "preview.html").read_text(encoding="utf-8")
+    assert "sine.wav" in html
+
+
+def test_generate_for_with_features(tmp_path):
+    """带音频特征的元数据写入 HTML。"""
+    wav = _write_sine_wav(tmp_path)
+    gen = PreviewGenerator()
+    gen.generate_for(wav, {"时长": "1.0s", "BPM": 120}, tmp_path / "out3",
+                     label="feat.wav")
+    html = (tmp_path / "out3" / "preview.html").read_text(encoding="utf-8")
+    assert "feat.wav" in html
+    assert "BPM" in html
+    assert "120" in html
+
+
+def test_generate_batch_with_spectrogram(tmp_path):
+    """批量预览包含频谱数据。"""
+    wav = _write_sine_wav(tmp_path, duration=2.0)
+    gen = PreviewGenerator()
+    audio, sr = gen._load_audio(wav)
+    items = [{
+        "label": "test.wav",
+        "audio_base64": gen._audio_to_base64(wav),
+        "waveform": gen._compute_waveform(audio),
+        "spectrogram": gen._compute_spectrogram(audio, sr),
+        "metadata": {"风格": "pop"},
+        "features": {"rms_db": -10.0, "peak_db": -1.0,
+                     "spectral_centroid": 440.0, "band_energy": {}},
+    }]
+    html_path = gen.generate_batch(items, tmp_path / "out4")
+    html = open(html_path, encoding="utf-8").read()
+    assert "spectrogram" in html

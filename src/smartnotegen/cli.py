@@ -649,22 +649,155 @@ def batch_cmd(
 # config
 # ---------------------------------------------------------------------------
 
-@config_app.command("init", help="生成配置文件模板（默认 smartnotegen.toml）")
+@config_app.command("init", help="生成配置文件模板（交互式引导，--yes 非交互）")
 @_guard
 def config_init(
     path: Path = typer.Option(Path("smartnotegen.toml"), "--path", "-p", help="目标路径"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="非交互模式，直接使用检测值/默认值"),
 ) -> None:
-    """生成带注释的默认配置模板（P0-6）。"""
+    """生成带注释的默认配置模板（P0-6；M-1 交互式引导）。
+
+    - TTY 下：交互式引导用户确认/修改 SoundFont、fluidsynth、项目名、风格等。
+    - 非 TTY 或 --yes：直接使用检测到的路径或默认值生成。
+    """
+    import sys as _sys
+    from smartnotegen.env import PathResolver, ProbeStatus
+
     target = Path(path).expanduser().resolve()
     template = Path.cwd() / "config" / "default.toml"
-    if template.is_file():
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
-        typer.echo(f"✅ 配置文件已生成: {target}")
-        typer.echo("   可修改 SoundFont 路径后使用：smartnotegen --config <path> <子命令>")
+
+    # 检测 module 路径
+    cfg = Config.load()
+    resolver = PathResolver(cfg)
+    probes = {p.component: p for p in resolver.probe_all()}
+
+    is_tty = _sys.stdin.isatty() and not yes
+    detected: dict[str, str] = {}
+
+    if is_tty:
+        typer.echo("🎛️ SmartNoteGen 配置向导")
+        typer.echo("检测到以下环境，按回车使用推荐值：")
+        typer.echo("")
+
+        # SoundFont 主库
+        sf = probes.get("soundfont")
+        if sf and sf.status == ProbeStatus.OK:
+            default_sf = str(sf.path)
+            typer.echo(f"  ✅ 检测到主音色库: {default_sf}")
+        else:
+            default_sf = cfg.paths.soundfont
+            typer.echo(f"  ⚠️ 未检测到主音色库，将使用默认: {default_sf}")
+        detected["soundfont"] = _config_prompt("主音色库路径", default_sf)
+
+        # SoundFont 备选
+        backup = probes.get("soundfont_backup")
+        if backup and backup.status == ProbeStatus.OK:
+            default_bk = str(backup.path)
+            typer.echo(f"  ✅ 检测到备选音色库: {default_bk}")
+        else:
+            default_bk = cfg.paths.soundfont_backup
+        detected["soundfont_backup"] = _config_prompt("备选音色库路径", default_bk)
+
+        # FluidSynth
+        fs = probes.get("fluidsynth")
+        if fs and fs.status == ProbeStatus.OK:
+            default_fs = str(fs.path)
+            typer.echo(f"  ✅ 检测到 fluidsynth: {default_fs}")
+        else:
+            default_fs = cfg.paths.fluidsynth
+        detected["fluidsynth"] = _config_prompt("fluidsynth 路径", default_fs)
+
+        # 项目名
+        detected["project"] = _config_prompt("默认项目名", cfg.output.project)
+
+        # 风格
+        detected["style"] = _config_prompt(
+            "默认风格", cfg.defaults.style, ["pop", "rock", "electronic", "classical"]
+        )
+
+        # BPM
+        detected["bpm"] = _config_prompt("默认 BPM", str(cfg.defaults.bpm))
+
+        typer.echo("")
     else:
+        # 非交互：使用检测到的路径（若有）
+        sf = probes.get("soundfont")
+        if sf and sf.status == ProbeStatus.OK:
+            detected["soundfont"] = str(sf.path)
+        fs = probes.get("fluidsynth")
+        if fs and fs.status == ProbeStatus.OK:
+            detected["fluidsynth"] = str(fs.path)
+        backup = probes.get("soundfont_backup")
+        if backup and backup.status == ProbeStatus.OK:
+            detected["soundfont_backup"] = str(backup.path)
+
+    # 生成配置：拷贝模板 + 覆盖检测值
+    if template.is_file():
+        content = template.read_text(encoding="utf-8")
+    else:
+        content = None
+
+    if content is None:
+        # 无模板时用 Config 默认生成
+        target.parent.mkdir(parents=True, exist_ok=True)
         target = Path(Config().write_template(target))
-        typer.echo(f"✅ 配置文件已生成: {target}")
+    else:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+
+    # 应用检测到的覆盖（追加或就地修改）
+    if detected:
+        _apply_detected_to_config(target, detected)
+
+    typer.echo(f"✅ 配置文件已生成: {target}")
+    typer.echo("   可修改后使用：smartnotegen --config <path> <子命令>")
+
+
+def _config_prompt(label: str, default: str, choices: Optional[list[str]] = None) -> str:
+    """配置向导提示输入。"""
+    choices_hint = f" ({', '.join(choices)})" if choices else ""
+    val = input(f"  {label}{choices_hint} [{default}]: ").strip()
+    if not val:
+        return default
+    if choices and val not in choices:
+        typer.echo(f"  ⚠️ 可选值: {', '.join(choices)}，使用默认值 {default}")
+        return default
+    return val
+
+
+def _apply_detected_to_config(target: Path, detected: dict[str, str]) -> None:
+    """将检测到的路径/参数写入配置文件（就地修改 TOML 文本）。"""
+    import re
+
+    content = target.read_text(encoding="utf-8")
+    replacements = {
+        "soundfont": detected.get("soundfont"),
+        "soundfont_backup": detected.get("soundfont_backup"),
+        "fluidsynth": detected.get("fluidsynth"),
+        "project": detected.get("project"),
+        "style": detected.get("style"),
+        "bpm": detected.get("bpm"),
+    }
+    lines = content.splitlines()
+    out_lines = []
+    for line in lines:
+        replaced = False
+        for key, val in replacements.items():
+            if val is None:
+                continue
+            pat = rf'^\s*{re.escape(key)}\s*='
+            if re.match(pat, line):
+                if key in ("bpm",):
+                    out_lines.append(f"{key} = {val}")
+                else:
+                    # Windows 路径反斜杠需要 TOML 转义
+                    safe_val = str(val).replace("\\", "\\\\")
+                    out_lines.append(f'{key} = "{safe_val}"')
+                replaced = True
+                break
+        if not replaced:
+            out_lines.append(line)
+    target.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
 
 
 @config_app.command("show", help="打印合并后的生效配置")
@@ -805,6 +938,17 @@ def doctor_cmd(
         if not has_module:
             missing.append("module/")
         _doctor_item("项目完整性", f"⚠️ 缺失: {', '.join(missing)}")
+        warnings += 1
+
+    # 配置文件（M-4）
+    config_default = project_root / "config" / "default.toml"
+    user_config = project_root / "smartnotegen.toml"
+    if config_default.is_file() and user_config.is_file():
+        _doctor_item("配置", "✅ default.toml + smartnotegen.toml 存在")
+    elif config_default.is_file():
+        _doctor_item("配置", "✅ default.toml 存在（无用户配置，用默认）")
+    else:
+        _doctor_item("配置", "⚠️ 缺少 config/default.toml")
         warnings += 1
 
     typer.echo("═══════════════════════════════════════")
@@ -1099,7 +1243,8 @@ def new_cmd() -> None:
     merged = cfg.merge_cli(style=style, bpm=bpm, chords=chords, bars=bars)
     pipeline = Pipeline(merged)
     result = pipeline.run(
-        GenerationRequest(style=style, bpm=bpm, chords=chords, bars=bars, seed=42),
+        GenerationRequest(style=style, bpm=bpm, chords=chords, bars=bars,
+                          seed=merged.random.seed),
         ExportOptions(duration=duration),
     )
     typer.echo(f"✅ 完成: {result.export_path}")

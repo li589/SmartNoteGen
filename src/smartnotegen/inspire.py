@@ -217,25 +217,34 @@ class InspirationDB:
     # -- 内部 ---------------------------------------------------------------
 
     def _load_metadata(self, wav_dir: Path) -> dict[str, Any]:
-        """从目录读取 metadata.json，提取首个匹配 WAV 的元数据。"""
+        """从目录读取 metadata.json，提取匹配 WAV 的元数据。
+
+        优先取 kind=midi 的产物（含完整 chords/bars），再叠加 wav/suno 的时长与特征。
+        """
         meta_file = wav_dir / "metadata.json"
         if not meta_file.is_file():
             return {}
         try:
             data = json.loads(meta_file.read_text(encoding="utf-8"))
             artifacts = data.get("artifacts", [])
-            # 找第一个 kind=wav 或 kind=suno 的产物
+            params: dict[str, Any] = {}
+            # 优先：midi 产物的完整参数（chords/bpm/bars/style）
+            for art in artifacts:
+                if art.get("kind") == "midi":
+                    params.update(art.get("params", {}))
+                    params["seed"] = art.get("seed")
+                    break
+            # 再叠加：wav/suno 产物的参数 + 时长/采样率/特征
             for art in artifacts:
                 if art.get("kind") in ("wav", "suno"):
-                    params = dict(art.get("params", {}))
+                    params.update(art.get("params", {}))  # 合并 style/bpm 等
                     params["duration_s"] = art.get("duration_s", 0)
                     params["sample_rate"] = art.get("sample_rate", 0)
-                    params["seed"] = art.get("seed")
+                    if params.get("seed") is None:
+                        params["seed"] = art.get("seed")
                     params["features"] = art.get("features", {})
-                    return params
-            # 没找到匹配的，返回第一个产物的 params
-            if artifacts:
-                return dict(artifacts[0].get("params", {}))
+                    break
+            return params
         except (json.JSONDecodeError, OSError):
             pass
         return {}

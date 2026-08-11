@@ -2,6 +2,38 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 风格。
 
+## [0.4.1] - 2026-08-12（打磨完善）
+
+### 修复
+- **new 向导参数 bug**：GenerationRequest 使用 merged 配置的 seed，用户输入的 BPM/和弦/小节正确生效
+- **灵感库 chords 提取**：_load_metadata 优先取 midi 产物完整参数，chords/bpm/bars 正确入库
+- **config init Windows 路径**：TOML 路径反斜杠转义，避免解析失败
+- **版本号规范化**：0.1.0 → 0.4.1（与 CHANGELOG 对齐）
+
+### 增强
+- **config init 交互式向导**：自动检测 module/ 路径，交互式引导配置；`--yes` 非交互模式
+- **doctor 增加配置检查**：检查 config/default.toml + smartnotegen.toml 存在性
+
+### 测试
+- 全量 279 测试全绿（新增 8 例）
+- 补充 inspire（features 边界/chords/组合筛选/导出）+ preview（base64/自动标签/频谱）测试
+
+## [0.4.0] - 2026-08-12（P3 二期：创作工作台）
+
+### 新增（P3-C1 / P3-C3 / P3-C2）
+- **灵感库（SQLite）**：`inspire init/add/list/show/rm/export`，自动从 metadata.json 提取元数据，支持标签 + 评分 + 多维筛选
+- **版本对比**：`diff <wav1> <wav2>` 对比时长/RMS/峰值/频谱中心/频段能量 + 参数
+- **参数引导**：`new` 交互式向导，非 TTY 自动执行 pipeline
+
+## [0.3.0] - 2026-08-11（P3 一期：创作体验闭环）
+
+### 新增（P3-A1 / P3-A2 / P3-A3 / P3-E3 / P3-E2）
+- **HTML 预览页**：pipeline/render/export 后自动产出 preview.html（波形 + 频谱 + 播放器，base64 内嵌，离线可用）
+- **play 子命令**：系统默认播放器播放 WAV
+- **音频特征摘要**：RMS/峰值/频谱中心/频段能量写入 metadata.json
+- **doctor 子命令**：一键环境诊断（Python/fluidsynth/SF2/CUDA/AI 依赖/espeak）
+- **config 预览节**：[preview] 配置 + --no-preview
+
 ## [0.2.0] - 2025-08-09（P1 二期 AI 冲刺）
 
 ### 新增（T-S1 / T-P1-1 / T-P1-2）

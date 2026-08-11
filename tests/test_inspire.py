@@ -148,3 +148,63 @@ def test_export_nonexistent(db):
     """导出不存在的灵感抛 ValueError。"""
     with pytest.raises(ValueError):
         db.export_files(9999, "/tmp")
+
+
+def test_add_features_non_dict(db, sample_wav):
+    """features 非 dict 时特征字段为 None（不崩溃）。"""
+    insp_id = db.add(str(sample_wav), metadata={"features": "not-a-dict"})
+    item = db.get(insp_id)
+    assert item is not None
+    assert item["rms_db"] is None
+    assert item["peak_db"] is None
+
+
+def test_add_chords_extracted(db, tmp_path):
+    """从 metadata.json 提取 chords（midi 产物）。"""
+    import numpy as np
+    import soundfile as sf
+    t = np.linspace(0, 1, 44100, endpoint=False)
+    audio = 0.5 * np.sin(2 * np.pi * 440 * t)
+    wav = tmp_path / "song.wav"
+    sf.write(str(wav), audio, 44100)
+
+    meta = {
+        "artifacts": [
+            {"kind": "midi", "params": {"chords": "C-G-Am-F", "bpm": 120, "style": "pop"},
+             "seed": 7},
+            {"kind": "suno", "params": {"style": "pop", "bpm": 120},
+             "duration_s": 10.0, "sample_rate": 44100},
+        ]
+    }
+    (tmp_path / "metadata.json").write_text(
+        json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+
+    insp_id = db.add(str(wav))
+    item = db.get(insp_id)
+    assert item["chords"] == "C-G-Am-F"
+    assert item["style"] == "pop"
+    assert item["bpm"] == 120
+    assert item["seed"] == 7
+    assert item["duration_s"] == 10.0
+
+
+def test_list_filter_combined(db, sample_metadata):
+    """组合筛选（style + tag + seed）。"""
+    db.add(str(sample_metadata), tags="upbeat,pop")  # style=pop, seed=42
+    items = db.list(style="pop", tag="upbeat", seed=42)
+    assert len(items) >= 1
+    # 不匹配的筛选
+    items2 = db.list(style="rock", tag="upbeat")
+    assert all(i["style"] == "rock" for i in items2)
+
+
+def test_export_files_with_meta(db, sample_metadata, tmp_path):
+    """导出时复制 metadata.json 和 preview.html（若存在）。"""
+    insp_id = db.add(str(sample_metadata))
+    # 创建 preview.html
+    (sample_metadata.parent / "preview.html").write_text("<html>preview</html>", encoding="utf-8")
+    out_dir = tmp_path / "export"
+    files = db.export_files(insp_id, str(out_dir))
+    names = [Path(f).name for f in files]
+    assert "metadata.json" in names
+    assert "preview.html" in names
