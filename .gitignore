@@ -24,6 +24,9 @@ module/fluidsynth_qa_hidden/
 # ===== 根目录测试残留（test_generators 写入 CWD）=====
 /*.mid
 
+# ===== 灵感库数据库（运行态生成，不入库）=====
+smartnotegen.db
+
 # ===== 系统文件 =====
 desktop.ini
 Thumbs.db
