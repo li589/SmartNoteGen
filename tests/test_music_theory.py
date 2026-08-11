@@ -144,6 +144,32 @@ def test_counterpoint_invalid_strictness():
         CounterpointEngine(strictness=5)
 
 
+def test_counterpoint_single_track_noop():
+    """单轨序列不触发对位（原样返回）。"""
+    seq = NoteSequence(bpm=120, bars=2)
+    seq.add_track("melody", 73, 1, [Note(pitch=60, start=0, duration=4.0, velocity=70)])
+    out = CounterpointEngine(strictness=1).enforce(seq)
+    assert len(out.tracks) == 1
+    assert out.tracks[0].notes[0].pitch == 60
+
+
+def test_counterpoint_drums_only_noop():
+    """仅鼓轨时不触发对位（channel 9 跳过）。"""
+    seq = NoteSequence(bpm=120, bars=2)
+    seq.add_track("drums", 0, 9, [Note(pitch=36, start=0, duration=1.0, velocity=60)])
+    out = CounterpointEngine(strictness=1).enforce(seq)
+    assert len(out.tracks) == 1
+
+
+def test_counterpoint_strictness_2_allowed():
+    """strictness=2 允许小六度（8 semitones）。"""
+    seq = _two_voice_seq([60, 68, 60, 68, 60, 68, 60, 68], [48, 48, 48, 48, 48, 48, 48, 48])
+    # 60-48=12（八度）OK；68-48=20→8（小六度，strictness=2 允许）
+    out = CounterpointEngine(strictness=2).enforce(seq)
+    upper = next(t for t in out.tracks if t.name == "upper")
+    assert len(upper.notes) > 0
+
+
 # ---------------------------------------------------------------------------
 # 和弦转位（P2-2 验收 3）
 # ---------------------------------------------------------------------------

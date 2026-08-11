@@ -64,6 +64,13 @@ smartnotegen pipeline
 | `batch` | 批量生成多个变体（随机化 + 可复现 + 失败隔离） | `smartnotegen batch --count 5 --seed 42` |
 | `ai musicgen` | MusicGen 扩编曲（旋律 → 伴奏） | `smartnotegen ai musicgen --input m.wav --prompt "upbeat pop"` |
 | `ai diffrhythm` | DiffRhythm 歌曲草稿（风格提示 → 带人声歌曲） | `smartnotegen ai diffrhythm --prompt "slow ballad"` |
+| `export suno-pack` | 批量导出 Suno 片段打包（目录 + zip + 清单） | `smartnotegen export suno-pack *.wav --name my_pack` |
+| `export suno-manifest` | 生成 Suno 上传清单（CSV/JSON） | `smartnotegen export suno-manifest *.wav -o upload.csv` |
+| `play` | 系统播放器播放 WAV | `smartnotegen play output/xxx.wav` |
+| `doctor` | 一键环境健康检查 | `smartnotegen doctor` |
+| `diff` | 对比两个 WAV 的音频特征 | `smartnotegen diff a.wav b.wav` |
+| `new` | 交互式引导生成新音乐 | `smartnotegen new` |
+| `inspire` | 灵感库管理（SQLite 存储） | `smartnotegen inspire init` |
 | `errors` | 打印错误码表 | `smartnotegen errors` |
 
 完整参数说明见 [docs/usage.md](docs/usage.md)。

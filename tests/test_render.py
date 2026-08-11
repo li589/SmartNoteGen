@@ -78,3 +78,21 @@ def test_render_custom_fluidsynth_path(mock_fluidsynth, fake_midi, fake_soundfon
     out = tmp_path / "custom.wav"
     path = renderer.render(str(fake_midi), str(fake_soundfont), str(out))
     assert out.is_file()
+
+
+def test_render_dry_run(mock_fluidsynth, fake_midi, fake_soundfont, tmp_path):
+    """dry_run 时不调用 subprocess，返回路径但不写文件。"""
+    renderer = FluidSynthRenderer()
+    out = tmp_path / "dry.wav"
+    path = renderer.render(str(fake_midi), str(fake_soundfont), str(out), dry_run=True)
+    assert path == str(out.resolve())
+    # dry_run 不写文件
+    assert not out.is_file()
+
+
+def test_render_dry_run_missing_midi(mock_fluidsynth, fake_soundfont, tmp_path):
+    """dry_run 时 MIDI 不存在仍抛错（前置校验优先）。"""
+    renderer = FluidSynthRenderer()
+    from smartnotegen.exceptions import InputFileError
+    with pytest.raises(InputFileError):
+        renderer.render(str(tmp_path / "nope.mid"), str(fake_soundfont), str(tmp_path / "o.wav"), dry_run=True)
