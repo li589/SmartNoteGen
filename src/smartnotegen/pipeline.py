@@ -28,6 +28,7 @@ from smartnotegen.generators.procedural import ProceduralGenerator
 from smartnotegen.logging_setup import get_logger
 from smartnotegen.models.midi import MidiDocument
 from smartnotegen.output_manager import ArtifactMeta, OutputManager, RunMeta
+from smartnotegen.preview import PreviewGenerator
 from smartnotegen.render.fluidsynth import FluidSynthRenderer
 
 logger = get_logger("pipeline")
@@ -230,6 +231,29 @@ class Pipeline:
                         ),
                     ],
                 )
+
+            # 8. 自动生成 HTML 预览页（P3-A1）
+            if self._preview_enabled():
+                try:
+                    preview = PreviewGenerator()
+                    preview_path = preview.generate_for(
+                        final_path,
+                        {
+                            "时长": f"{meta['duration_s']}s",
+                            "采样率": f"{meta['sample_rate']}Hz",
+                            "位深": f"{meta['bit_depth']}bit",
+                            "风格": request.style,
+                            "BPM": request.bpm,
+                            "seed": request.seed,
+                            "和弦": request.chords,
+                        },
+                        output_manager.root(),
+                        label=Path(final_path).name,
+                    )
+                    logger.info("预览页: %s", preview_path)
+                except Exception as exc:  # 预览失败不阻断管线
+                    logger.warning("预览页生成失败（不影响产物）: %s", exc)
+
             return result
         finally:
             if tmp_dir is not None:
@@ -262,6 +286,16 @@ class Pipeline:
         processor = DspProcessor()
         processor.validate(opts)
         processor.process(str(wav_path), opts, str(wav_path))
+
+    def _preview_enabled(self) -> bool:
+        """预览页是否开启（config 或 dry-run 时关闭）。"""
+        if self.dry_run:
+            return False
+        # 兼容：config 无 preview 节时（旧配置）默认开启
+        preview = getattr(self.config, "preview", None)
+        if preview is None:
+            return True
+        return bool(getattr(preview, "enabled", True))
 
 
 def _force_remove_tree(path: Path) -> None:

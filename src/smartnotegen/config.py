@@ -91,6 +91,12 @@ DEFAULT_AI = {
     "diffrhythm_chunked": True,
 }
 
+DEFAULT_PREVIEW = {
+    "enabled": True,
+    "spectrogram": True,
+    "max_waveform_points": 2000,
+}
+
 
 # ---------------------------------------------------------------------------
 # 子配置 dataclass
@@ -185,6 +191,15 @@ class AiConfig:
     diffrhythm_chunked: bool = DEFAULT_AI["diffrhythm_chunked"]
 
 
+@dataclass
+class PreviewConfig:
+    """HTML 预览页（P3-A1）。"""
+
+    enabled: bool = DEFAULT_PREVIEW["enabled"]
+    spectrogram: bool = DEFAULT_PREVIEW["spectrogram"]
+    max_waveform_points: int = DEFAULT_PREVIEW["max_waveform_points"]
+
+
 # ---------------------------------------------------------------------------
 # 顶层 Config
 # ---------------------------------------------------------------------------
@@ -243,7 +258,7 @@ _CLI_OVERRIDE_MAP: dict[str, tuple[str, str]] = {
 }
 
 #: 合法 section 集合（_merge_dict 校验用）
-_VALID_SECTIONS = {"paths", "defaults", "export", "random", "output", "dsp", "styles", "ai"}
+_VALID_SECTIONS = {"paths", "defaults", "export", "random", "output", "dsp", "styles", "ai", "preview"}
 
 
 @dataclass
@@ -258,6 +273,7 @@ class Config:
     dsp: DspConfig = field(default_factory=DspConfig)
     styles: StylesConfig = field(default_factory=StylesConfig)
     ai: AiConfig = field(default_factory=AiConfig)
+    preview: PreviewConfig = field(default_factory=PreviewConfig)
     #: 最终生效的用户配置文件路径（可能为空）
     config_path: Optional[Path] = None
 
@@ -435,6 +451,11 @@ class Config:
                 "model_size": self.ai.model_size,
                 "diffrhythm_chunked": self.ai.diffrhythm_chunked,
             },
+            "preview": {
+                "enabled": self.preview.enabled,
+                "spectrogram": self.preview.spectrogram,
+                "max_waveform_points": self.preview.max_waveform_points,
+            },
         }
         if self.random.seed is None:
             d["random"].pop("seed", None)
@@ -453,6 +474,7 @@ class Config:
         dsp_data = data.get("dsp", {})
         styles_data = data.get("styles", {})
         ai_data = data.get("ai", {})
+        preview_data = data.get("preview", {})
 
         paths = PathsConfig(
             module_dir=str(paths_data.get("module_dir", DEFAULT_PATHS["module_dir"])),
@@ -528,6 +550,13 @@ class Config:
                 ai_data.get("diffrhythm_chunked", DEFAULT_AI["diffrhythm_chunked"])
             ),
         )
+        preview = PreviewConfig(
+            enabled=bool(preview_data.get("enabled", DEFAULT_PREVIEW["enabled"])),
+            spectrogram=bool(preview_data.get("spectrogram", DEFAULT_PREVIEW["spectrogram"])),
+            max_waveform_points=int(
+                preview_data.get("max_waveform_points", DEFAULT_PREVIEW["max_waveform_points"])
+            ),
+        )
         return cls(
             paths=paths,
             defaults=defaults,
@@ -537,6 +566,7 @@ class Config:
             dsp=dsp,
             styles=styles,
             ai=ai,
+            preview=preview,
         )
 
     def _merge_dict(self, data: dict[str, Any], source: str) -> "Config":

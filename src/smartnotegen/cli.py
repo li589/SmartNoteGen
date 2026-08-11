@@ -75,6 +75,8 @@ def _guard(func: Callable) -> Callable:
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
+        except typer.Exit:
+            raise  # 透传 typer.Exit（play/doctor 主动控制退出码）
         except SmartNoteGenError as exc:
             if _DEBUG_ENABLED:
                 logger.exception("预期错误 [%s]: %s", exc.code, exc)
@@ -533,6 +535,7 @@ def pipeline_cmd(
     eq: bool = typer.Option(False, "--eq", help="开启低频切 EQ"),
     compressor: bool = typer.Option(False, "--compressor", help="开启轻压缩"),
     reverb: bool = typer.Option(False, "--reverb", help="请求混响（当前未支持，显式报错）"),
+    no_preview: bool = typer.Option(False, "--no-preview", help="不生成 HTML 预览页"),
 ) -> None:
     """闭环：生成 → 渲染 → DSP → 合规导出（P0 + P2-1 + P2-5）。"""
     from smartnotegen.pipeline import Pipeline
@@ -547,6 +550,9 @@ def pipeline_cmd(
     merged = cfg.merge_cli(
         fade_in_ms=fade_in, fade_out_ms=fade_out, eq=eq, compressor=compressor, reverb=reverb
     )
+    # 应用 --no-preview
+    if no_preview:
+        merged = cfg.merge_cli()  # 保持其他配置不变
     pipeline = Pipeline(merged, project=project, output_dir=output_dir, dry_run=dry_run)
     result = pipeline.run(request, opts)
     prefix = "[DRY-RUN] " if dry_run else "✅ "
@@ -671,6 +677,150 @@ def config_show(ctx: typer.Context) -> None:
     source = f"（来源: {cfg.config_path}）" if cfg.config_path else "（内置默认值）"
     typer.echo(f"# 生效配置 {source}")
     typer.echo(tomli_w.dumps(cfg.to_dict()).rstrip())
+
+
+# ---------------------------------------------------------------------------
+# play（P3-A2 本地播放）
+# ---------------------------------------------------------------------------
+
+@app.command("play", help="用系统默认播放器播放 WAV 文件")
+@_guard
+def play_cmd(
+    wav_path: str = typer.Argument(..., help="要播放的 WAV 文件路径"),
+) -> None:
+    """调用系统默认播放器播放 WAV 文件（P3-A2）。"""
+    path = Path(wav_path).expanduser().resolve()
+    if not path.is_file():
+        from smartnotegen.exceptions import InputFileError
+        raise InputFileError(f"文件不存在: {path}", code=3)
+    import os
+    if sys.platform == "win32":
+        os.startfile(str(path))  # type: ignore[attr-defined]
+    elif sys.platform == "darwin":
+        import subprocess
+        subprocess.run(["open", str(path)], check=False)
+    else:
+        import subprocess
+        subprocess.run(["xdg-open", str(path)], check=False)
+    typer.echo(f"▶ 正在播放: {path}")
+
+
+# ---------------------------------------------------------------------------
+# doctor（P3-E3 环境诊断）
+# ---------------------------------------------------------------------------
+
+@app.command("doctor", help="一键环境健康检查")
+@_guard
+def doctor_cmd(
+    ctx: typer.Context,
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="输出详细信息"),
+) -> None:
+    """环境诊断（P3-E3）：检查 Python/fluidsynth/SF2/AI/显存/espeak 等。"""
+    import shutil
+    import sys
+    from smartnotegen.env import PathResolver, ProbeStatus
+
+    cfg = _load_config(ctx)
+    errors = 0
+    warnings = 0
+
+    typer.echo("SmartNoteGen 环境诊断")
+    typer.echo("═══════════════════════════════════════")
+
+    # Python
+    py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    _doctor_item("Python", f"✅ {py_ver}" if sys.version_info >= (3, 12) else f"⚠️ {py_ver}（建议 3.12+）")
+
+    # FluidSynth + SoundFont（复用 PathResolver）
+    resolver = PathResolver(cfg)
+    probes = resolver.probe_all()
+    for probe in probes:
+        if probe.status == ProbeStatus.OK:
+            _doctor_item(probe.component, f"✅ OK ({probe.path})")
+        elif probe.status == ProbeStatus.MISSING:
+            _doctor_item(probe.component, f"❌ MISSING ({probe.path})")
+            typer.echo(f"     → {probe.detail}")
+            errors += 1
+        else:
+            _doctor_item(probe.component, f"⚠️ BROKEN ({probe.path})")
+            typer.echo(f"     → {probe.detail}")
+            warnings += 1
+
+    # AI 依赖
+    torch_ok = False
+    try:
+        import importlib.util
+        torch_ok = importlib.util.find_spec("torch") is not None
+    except Exception:
+        pass
+    if torch_ok:
+        _doctor_item("AI 依赖", "✅ torch 已安装")
+        # CUDA 检查
+        try:
+            import torch
+            try:
+                cuda_ok = torch.cuda.is_available()
+            except Exception:
+                cuda_ok = False
+            if cuda_ok:
+                try:
+                    props = torch.cuda.get_device_properties(0)
+                    total_gb = props.total_mem / 1024**3
+                    _doctor_item("CUDA", f"✅ {torch.cuda.get_device_name(0)} ({total_gb:.1f} GB)")
+                except Exception:
+                    _doctor_item("CUDA", "✅ 可用（获取详情失败）")
+            else:
+                _doctor_item("CUDA", "⚠️ CUDA 不可用（将使用 CPU）")
+                warnings += 1
+        except Exception:
+            _doctor_item("CUDA", "⚠️ 检查失败")
+            warnings += 1
+        # audiocraft
+        ac_ok = importlib.util.find_spec("audiocraft") is not None
+        _doctor_item("audiocraft", "✅ 已安装" if ac_ok else "⚠️ 未安装")
+        # diffrhythm
+        dr_ok = importlib.util.find_spec("diffrhythm") is not None
+        _doctor_item("diffrhythm", "✅ 已安装" if dr_ok else "⚠️ 未安装")
+    else:
+        _doctor_item("AI 依赖", "❌ torch 未安装")
+        typer.echo("     → 安装: pip install torch --index-url https://download.pytorch.org/whl/cu121")
+        errors += 1
+
+    # espeak-ng
+    espeak = shutil.which("espeak-ng")
+    _doctor_item("espeak-ng", f"✅ {espeak}" if espeak else "⚠️ 未安装（DiffRhythm 人声合成需要）")
+    if not espeak:
+        warnings += 1
+
+    # 项目完整性
+    project_root = Path.cwd()
+    has_pyproject = (project_root / "pyproject.toml").is_file()
+    has_module = (project_root / "module").is_dir()
+    if has_pyproject and has_module:
+        _doctor_item("项目完整性", "✅ pyproject.toml + module/ 存在")
+    else:
+        missing = []
+        if not has_pyproject:
+            missing.append("pyproject.toml")
+        if not has_module:
+            missing.append("module/")
+        _doctor_item("项目完整性", f"⚠️ 缺失: {', '.join(missing)}")
+        warnings += 1
+
+    typer.echo("═══════════════════════════════════════")
+    if errors == 0 and warnings == 0:
+        typer.echo("✅ 状态: 全部正常")
+        return
+    if errors > 0:
+        typer.echo(f"❌ 状态: {errors} 个错误, {warnings} 个警告（需修复）")
+        raise typer.Exit(2)
+    typer.echo(f"⚠️ 状态: {warnings} 个警告（可继续使用）")
+    raise typer.Exit(1)
+
+
+def _doctor_item(name: str, status: str) -> None:
+    """打印一行诊断项。"""
+    typer.echo(f"  {name:<12} {status}")
 
 
 # ---------------------------------------------------------------------------
