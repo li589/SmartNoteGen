@@ -47,7 +47,7 @@ source = ["smartnotegen"]
 omit = ["src/smartnotegen/__main__.py"]
 
 [tool.coverage.report]
-fail_under = 85
+fail_under = 87
 
 [tool.ruff]
 line-length = 100

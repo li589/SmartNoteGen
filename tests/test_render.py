@@ -62,6 +62,37 @@ def test_render_subprocess_failure(mock_fluidsynth, fake_midi, fake_soundfont, t
     assert exc.value.code == 4
 
 
+def test_render_subprocess_oserror(mock_fluidsynth, fake_midi, fake_soundfont, tmp_path, monkeypatch):
+    """subprocess.run 抛 OSError -> RenderError(4)。"""
+    from smartnotegen.render import fluidsynth as fs_mod
+
+    def _raise_oserror(*a, **k):
+        raise OSError("file not found")
+
+    monkeypatch.setattr(fs_mod.subprocess, "run", _raise_oserror)
+    renderer = FluidSynthRenderer()
+    with pytest.raises(RenderError) as exc:
+        renderer.render(str(fake_midi), str(fake_soundfont), str(tmp_path / "o.wav"))
+    assert exc.value.code == 4
+    assert "无法启动 fluidsynth" in str(exc.value)
+
+
+def test_render_output_not_created(mock_fluidsynth, fake_midi, fake_soundfont, tmp_path, monkeypatch):
+    """返回码 0 但输出文件未生成 -> RenderError(4)。"""
+    from smartnotegen.render import fluidsynth as fs_mod
+
+    class _Ok:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    monkeypatch.setattr(fs_mod.subprocess, "run", lambda *a, **k: _Ok())
+    renderer = FluidSynthRenderer()
+    with pytest.raises(RenderError) as exc:
+        renderer.render(str(fake_midi), str(fake_soundfont), str(tmp_path / "o.wav"))
+    assert exc.value.code == 4
+
+
 def test_render_custom_fluidsynth_path(mock_fluidsynth, fake_midi, fake_soundfont, tmp_path, monkeypatch):
     """配置绝对路径的 fluidsynth 可被解析（文件存在）。"""
     from smartnotegen.render import fluidsynth as fs_mod

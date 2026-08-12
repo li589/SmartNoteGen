@@ -11,6 +11,8 @@ dist/
 .pytest_tmp/
 .pytest_cache/
 htmlcov/
+.coverage
+coverage.xml
 
 # ===== WorkBuddy 内部（含项目记忆，勿入库）=====
 .workbuddy/

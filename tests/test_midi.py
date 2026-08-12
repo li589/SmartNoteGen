@@ -8,7 +8,72 @@ import pytest
 from smartnotegen.generators.base import GenerationRequest
 from smartnotegen.generators.procedural import ProceduralGenerator
 from smartnotegen.models.midi import MidiDocument
-from smartnotegen.models.notes import Note, NoteSequence
+from smartnotegen.models.notes import Note, NoteSequence, pitch_to_name
+
+
+def test_pitch_to_name_c4():
+    """C4 = pitch 60。"""
+    assert pitch_to_name(60) == "C4"
+    assert pitch_to_name(69) == "A4"
+    assert pitch_to_name(48) == "C3"
+
+
+def test_pitch_to_name_sharp():
+    """升号音名。"""
+    assert pitch_to_name(61) == "C#4"
+
+
+def test_note_name_property():
+    """Note.name 属性。"""
+    assert Note(pitch=60, start=0, duration=1).name == "C4"
+
+
+def test_note_invalid_pitch():
+    """pitch 越界 -> ValueError。"""
+    with pytest.raises(ValueError):
+        Note(pitch=128, start=0, duration=1)
+
+
+def test_note_invalid_duration():
+    """duration <= 0 -> ValueError。"""
+    with pytest.raises(ValueError):
+        Note(pitch=60, start=0, duration=0)
+
+
+def test_add_track_invalid_program():
+    """program 越界 -> ValueError。"""
+    seq = NoteSequence()
+    with pytest.raises(ValueError):
+        seq.add_track("x", 200, 0, [])
+
+
+def test_add_track_invalid_channel():
+    """channel 越界 -> ValueError。"""
+    seq = NoteSequence()
+    with pytest.raises(ValueError):
+        seq.add_track("x", 0, 20, [])
+
+
+def test_invalid_time_signature():
+    """非法拍号 -> ValueError。"""
+    seq = NoteSequence(time_signature="not-valid")
+    with pytest.raises(ValueError):
+        seq.total_beats()
+
+
+def test_duration_seconds():
+    """时长换算：120bpm 8 小节 4/4 -> 16s。"""
+    seq = NoteSequence(bpm=120, bars=8, time_signature="4/4")
+    assert seq.duration_seconds() == 16.0
+
+
+def test_track_names_and_notes_flat():
+    """轨道名和全部音符打平。"""
+    seq = NoteSequence()
+    seq.add_track("a", 0, 0, [Note(pitch=60, start=0, duration=1)])
+    seq.add_track("b", 1, 1, [Note(pitch=62, start=1, duration=1)])
+    assert seq.track_names == ["a", "b"]
+    assert len(seq.notes) == 2
 
 
 def test_write_and_load_roundtrip(tmp_path):

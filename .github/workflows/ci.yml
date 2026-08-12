@@ -32,7 +32,7 @@ jobs:
         run: ruff check src/
 
       - name: Test with pytest
-        run: python -m pytest --cov --cov-report=term-missing --cov-fail-under=85
+        run: python -m pytest --cov --cov-report=term-missing --cov-fail-under=87
 
       - name: Check P0 zero torch import
         run: |

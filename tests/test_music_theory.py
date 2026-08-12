@@ -73,6 +73,87 @@ def test_onsets_in_bar():
     assert onsets == [0.0, 1.0, 2.0, 2.5]
 
 
+def test_pattern_density_high():
+    """密度高 -> eighth。"""
+    from smartnotegen.music_theory import RhythmPattern
+    pat = RhythmPattern("dense", (1, 1, 1, 1, 1, 1, 1, 1))
+    assert pat.density == "eighth"
+
+
+def test_pattern_density_medium():
+    """密度中等 -> half。"""
+    from smartnotegen.music_theory import RhythmPattern
+    pat = RhythmPattern("mid", (1, 0, 1, 0, 1, 0, 0, 0))
+    assert pat.density == "half"
+
+
+def test_pattern_density_low():
+    """密度低 -> sustain。"""
+    from smartnotegen.music_theory import RhythmPattern
+    pat = RhythmPattern("sparse", (1, 0, 0, 0, 0, 0, 0, 0))
+    assert pat.density == "sustain"
+
+
+def test_pattern_density_empty():
+    """空网格 -> sustain。"""
+    from smartnotegen.music_theory import RhythmPattern
+    pat = RhythmPattern("empty", ())
+    assert pat.density == "sustain"
+
+
+def test_onsets_in_bar_empty_grid():
+    """空网格 onets 为空列表。"""
+    from smartnotegen.music_theory import RhythmPattern
+    pat = RhythmPattern("empty", ())
+    assert pat.onsets_in_bar(4.0) == []
+
+
+def test_from_json_missing_file():
+    """from_json 不存在的文件 -> InputFileError(3)。"""
+    from smartnotegen.exceptions import InputFileError
+    with pytest.raises(InputFileError):
+        RhythmPatternRegistry.from_json("/nonexistent/x.json")
+
+
+def test_from_json_invalid_json(tmp_path):
+    """from_json 非法 JSON -> ParameterError(1)。"""
+    p = tmp_path / "bad.json"
+    p.write_text("{invalid", encoding="utf-8")
+    with pytest.raises(ParameterError):
+        RhythmPatternRegistry.from_json(p)
+
+
+def test_from_json_invalid_grid(tmp_path):
+    """from_json grid 含非 0/1 -> ParameterError(1)。"""
+    p = tmp_path / "badgrid.json"
+    p.write_text('{"name": "x", "grid": [1, 2, 3]}', encoding="utf-8")
+    with pytest.raises(ParameterError):
+        RhythmPatternRegistry.from_json(p)
+
+
+def test_from_json_empty_grid(tmp_path):
+    """from_json grid 为空 -> ParameterError(1)。"""
+    p = tmp_path / "emptygrid.json"
+    p.write_text('{"name": "x", "grid": []}', encoding="utf-8")
+    with pytest.raises(ParameterError):
+        RhythmPatternRegistry.from_json(p)
+
+
+def test_from_string_empty():
+    """from_string 空/无 0/1 -> ParameterError(1)。"""
+    with pytest.raises(ParameterError):
+        RhythmPatternRegistry.from_string("")
+
+
+def test_names_includes_custom():
+    """names() 包含自定义节奏型。"""
+    from smartnotegen.music_theory import RhythmPattern
+    extra = RhythmPattern("myx", (1, 0, 0, 0, 0, 0, 0, 0))
+    reg = RhythmPatternRegistry(extra_patterns=[extra])
+    assert "myx" in reg.names()
+    assert "pop" in reg.names()
+
+
 # ---------------------------------------------------------------------------
 # 平行五度/八度检测（P2-2 验收 1）
 # ---------------------------------------------------------------------------
@@ -168,6 +249,39 @@ def test_counterpoint_strictness_2_allowed():
     out = CounterpointEngine(strictness=2).enforce(seq)
     upper = next(t for t in out.tracks if t.name == "upper")
     assert len(upper.notes) > 0
+
+
+def test_counterpoint_same_pitch_range_noop():
+    """上下声部音域相同（lower is upper）时不调整。"""
+    seq = _two_voice_seq([60, 60, 60, 60], [60, 60, 60, 60])
+    out = CounterpointEngine(strictness=1).enforce(seq)
+    upper = next(t for t in out.tracks if t.name == "upper")
+    # 音域相同 -> 不触发调整，所有音符保持原样
+    assert all(n.pitch == 60 for n in upper.notes)
+
+
+def test_counterpoint_nearest_consonant():
+    """_nearest_consonant 就近找协和音。"""
+    from smartnotegen.music_theory.counterpoint import CONSONANT_SETS
+    engine = CounterpointEngine(strictness=1)
+    allowed = CONSONANT_SETS[1]
+    # bass=48(C3)，pitch=61(C#4) 二度不协和 -> 就近找协和（C4=60）
+    result = engine._nearest_consonant(61, 48, allowed)
+    assert abs(result - 48) % 12 in allowed
+    assert result == 60  # 就近：60 与 48 差 12（八度，协和）
+
+
+def test_counterpoint_nearest_consonant_boundary():
+    """_nearest_consonant 在音域边界不越界。"""
+    from smartnotegen.music_theory.counterpoint import CONSONANT_SETS
+    engine = CounterpointEngine(strictness=1)
+    allowed = CONSONANT_SETS[1]
+    # 极高音：127 附近找协和，不越界
+    result = engine._nearest_consonant(127, 60, allowed)
+    assert 0 <= result <= 127
+    # 极低音：0 附近找协和，不越界
+    result2 = engine._nearest_consonant(0, 60, allowed)
+    assert 0 <= result2 <= 127
 
 
 # ---------------------------------------------------------------------------
