@@ -1076,13 +1076,19 @@ def ai_diffrhythm(
     lyrics: Optional[str] = typer.Option(None, "--lyrics", help="歌词（纯文本，行分隔；不传为空词哼唱）"),
     duration: Optional[int] = typer.Option(None, "--duration", help="目标时长（默认 95s）"),
     device: Optional[str] = typer.Option(None, "--device", help="cuda|cpu"),
+    diffrhythm_dir: Optional[Path] = typer.Option(
+        None, "--diffrhythm-dir", help="DiffRhythm 仓库根目录（覆盖 DIFFRHYTHM_DIR 与 module/diffrhythm 默认）"
+    ),
 ) -> None:
     """DiffRhythm 歌曲草稿（P1；P0 环境提示安装依赖，退出码 6）。"""
     from smartnotegen.ai.diffrhythm import DiffRhythmAdapter
 
     cfg = _load_config(ctx)
     merged = cfg.merge_cli(device=device)
-    adapter = DiffRhythmAdapter(device=merged.ai.device)
+    adapter = DiffRhythmAdapter(
+        device=merged.ai.device,
+        model_dir=str(diffrhythm_dir) if diffrhythm_dir else None,
+    )
     src = str(input) if input is not None else ""
     path = adapter.generate(
         src, prompt,

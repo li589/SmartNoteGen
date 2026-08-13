@@ -139,7 +139,8 @@ smartnotegen ai musicgen --input melody.wav --prompt "upbeat pop" \
 # DiffRhythm：风格提示（+ 可选歌词）→ 完整歌曲草稿（带人声）
 smartnotegen ai diffrhythm --prompt "slow ballad" \
                            [--input ref.wav] [--output song.wav] \
-                           [--lyrics "歌词"] [--duration 95] [--device cuda|cpu]
+                           [--lyrics "歌词"] [--duration 95] [--device cuda|cpu] \
+                           [--diffrhythm-dir /abs/path/to/DiffRhythm]
 ```
 
 | 参数 | 默认 | 说明 |
@@ -157,6 +158,7 @@ smartnotegen ai diffrhythm --prompt "slow ballad" \
 | `ai diffrhythm --lyrics` | 空（哼唱） | 歌词纯文本（行分隔），自动转为 LRC 时间戳 |
 | `ai diffrhythm --duration` | 95 | 目标时长：**95 或 96–285s**（官方限制），非法退出码 1 |
 | `ai diffrhythm --device` | `cuda` | `cuda` / `cpu` |
+| `ai diffrhythm --diffrhythm-dir` | 由 `DIFFRHYTHM_DIR` / `module/diffrhythm` 决定 | DiffRhythm 仓库根目录（绝对/相对路径）。命令行级覆盖仓库位置，优先级高于 `DIFFRHYTHM_DIR` 环境变量与默认的 `module/diffrhythm`，无需把仓库放在 `module/` 下 |
 
 **行为与合规：**
 - MusicGen 输出 32kHz WAV，可被 `export suno` 消费（导出链内部重采样到 44.1kHz）。

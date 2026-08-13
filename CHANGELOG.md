@@ -2,6 +2,14 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 风格。
 
+## [0.5.3] - 2026-08-14（DiffRhythm 仓库路径可命令行配置 + 测试）
+
+### 增强
+- **`ai diffrhythm` 新增 `--diffrhythm-dir` 选项**：命令行级指定 DiffRhythm 仓库根目录，优先级高于 `DIFFRHYTHM_DIR` 环境变量与默认 `module/diffrhythm`，无需将仓库放在 `module/` 下（接入适配器既有 `model_dir` 参数）。
+
+### 测试
+- `tests/test_ai_diffrhythm.py` 新增 `repo_dir` 优先级参数化单测（`model_dir` > `DIFFRHYTHM_DIR` > 默认 `module/diffrhythm`）。
+
 ## [0.5.2] - 2026-08-14（代码重构 + 覆盖率提升 + CI 增强）
 
 ### 重构

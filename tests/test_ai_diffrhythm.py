@@ -163,6 +163,31 @@ def test_repo_dir_default_module(tmp_path, monkeypatch):
     assert DiffRhythmAdapter().repo_dir() == repo.resolve()
 
 
+@pytest.mark.parametrize(
+    "with_env,with_model_dir,winner",
+    [
+        (True, False, "env"),
+        (False, True, "model"),
+        (True, True, "model"),  # 命令行 --diffrhythm-dir 优先于 DIFFRHYTHM_DIR 环境变量
+    ],
+)
+def test_repo_dir_priority_over_env(monkeypatch, tmp_path, with_env, with_model_dir, winner):
+    """model_dir（CLI --diffrhythm-dir）优先级高于 DIFFRHYTHM_DIR 环境变量。"""
+    env_repo = tmp_path / "env_repo"
+    (env_repo / "infer").mkdir(parents=True)
+    (env_repo / "infer" / "infer.py").write_text("x=1\n", encoding="utf-8")
+    model_repo = tmp_path / "model_repo"
+    (model_repo / "infer").mkdir(parents=True)
+    (model_repo / "infer" / "infer.py").write_text("x=1\n", encoding="utf-8")
+    if with_env:
+        monkeypatch.setenv("DIFFRHYTHM_DIR", str(env_repo))
+    else:
+        monkeypatch.delenv("DIFFRHYTHM_DIR", raising=False)
+    adapter = DiffRhythmAdapter(model_dir=str(model_repo) if with_model_dir else None)
+    expected = (model_repo if winner == "model" else env_repo).resolve()
+    assert adapter.repo_dir() == expected
+
+
 def test_check_espeak(monkeypatch):
     # 环境无关：mock _espeak_dir 探测结果
     adapter = DiffRhythmAdapter()
