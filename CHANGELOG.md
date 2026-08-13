@@ -2,6 +2,32 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 风格。
 
+## [0.5.2] - 2026-08-14（代码重构 + 覆盖率提升 + CI 增强）
+
+### 重构
+- **拆分 cli.py**（1410 → 1100 行）：辅助函数抽离到 `commands/helpers.py`（15 个辅助函数）
+- 保持向后兼容：`from smartnotegen.cli import app` 仍有效
+
+### 测试增强
+- 新增 29 例测试（rhythm_patterns 10 + counterpoint 4 + notes 9 + fluidsynth 3 + export 3）
+- 全量 329 测试全绿，覆盖率 **87.41%**（门槛 85% → 87%）
+- `.gitignore` 增加 `.coverage` / `coverage.xml`
+
+## [0.5.1] - 2026-08-12（工程化深化）
+
+### 工程化
+- **GitHub Actions CI**：push 自动 lint + test + coverage 门禁
+- **pyright 类型检查**配置（basic 模式）
+- 新增 11 例测试，覆盖率门槛 80% → 85%
+- README 补齐 P3 命令
+
+## [0.5.0] - 2026-08-12（P3 三期：Suno 衔接）
+
+### 新增（P3-B2 / P3-B3 / P3-B1）
+- **`export suno-pack`**：批量导出 Suno 片段打包（目录 + zip + manifest.json）
+- **`export suno-manifest`**：生成 CSV/JSON 上传清单（utf-8-sig，Excel 兼容）
+- **Suno API 调研**：官方 API 已开放，推荐方案 B（独立脚本），见 `docs/ai-integration.md` §6
+
 ## [0.4.1] - 2026-08-12（打磨完善）
 
 ### 修复

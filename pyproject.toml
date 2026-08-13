@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smartnotegen"
-version = "0.4.1"
+version = "0.5.2"
 description = "本地 AI 音乐生成 CLI：程序化 MIDI → 渲染 WAV → Suno 合规导出"
 readme = "README.md"
 requires-python = ">=3.12"

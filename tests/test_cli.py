@@ -27,7 +27,7 @@ def test_help_lists_all_subcommands():
 def test_version():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "0.4.1" in result.output
+    assert "0.5.2" in result.output
 
 
 def test_config_init(tmp_project):

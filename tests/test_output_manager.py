@@ -78,7 +78,7 @@ def test_write_metadata_schema(tmp_path):
     om = _om(tmp_path, project="myproj")
     run = RunMeta(command="smartnotegen batch --count 3 --seed 42", seed=42,
                   started_at="2025-08-09T10:00:00", duration_s=3.2,
-                  version="0.1.0", config_path=None)
+                  version="0.5.2", config_path=None)
     artifacts = [
         ArtifactMeta(path="output/myproj/20250809/pop_120_42001_1.mid", kind="midi",
                      params={"chords": "C-G-Am-F", "bpm": 120, "bars": 8, "style": "pop"},
@@ -91,7 +91,7 @@ def test_write_metadata_schema(tmp_path):
     data = json.loads(Path(target).read_text(encoding="utf-8"))
     assert data["schema_version"] == "1.0"
     assert data["run"]["seed"] == 42
-    assert data["run"]["version"] == "0.1.0"
+    assert data["run"]["version"] == "0.5.2"
     assert len(data["artifacts"]) == 2
     assert data["artifacts"][0]["kind"] == "midi"
     assert data["artifacts"][0]["params"]["chords"] == "C-G-Am-F"
