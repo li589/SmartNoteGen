@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from smartnotegen.config import Config
 from smartnotegen.pipeline import Pipeline, _force_remove_tree
@@ -26,7 +25,6 @@ def test_pipeline_preview_disabled_in_dry_run():
 
 def test_pipeline_preview_disabled_via_config():
     """配置 preview.enabled=false 时关闭。"""
-    from dataclasses import replace
     cfg = Config()
     cfg.preview.enabled = False
     pipeline = Pipeline(cfg)

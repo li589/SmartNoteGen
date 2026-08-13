@@ -99,7 +99,6 @@ def test_render_custom_fluidsynth_path(mock_fluidsynth, fake_midi, fake_soundfon
 
     binary = tmp_path / "fluidsynth-custom.exe"
     binary.write_bytes(b"mock")
-    calls = {}
 
     def fake_resolve(self):
         return str(binary)
@@ -107,7 +106,7 @@ def test_render_custom_fluidsynth_path(mock_fluidsynth, fake_midi, fake_soundfon
     monkeypatch.setattr(fs_mod.FluidSynthRenderer, "_resolve_fluidsynth", fake_resolve)
     renderer = FluidSynthRenderer(fluidsynth_path=str(binary))
     out = tmp_path / "custom.wav"
-    path = renderer.render(str(fake_midi), str(fake_soundfont), str(out))
+    renderer.render(str(fake_midi), str(fake_soundfont), str(out))
     assert out.is_file()
 
 

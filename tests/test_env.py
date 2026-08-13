@@ -15,14 +15,18 @@ from smartnotegen.env import PathResolver, ProbeStatus, ProjectRootResolver
 from smartnotegen.exceptions import ConfigError, ModuleError, RenderError
 
 #: 注入 runner：模拟 fluidsynth 加载 SF2 成功（退出码 0，无错误文本）
-_OK_RUNNER = lambda cmd: SimpleNamespace(returncode=0, stdout="FluidSynth runtime version 2.5.7", stderr="")
+def _OK_RUNNER(cmd):
+    return SimpleNamespace(returncode=0, stdout="FluidSynth runtime version 2.5.7", stderr="")
+
+
 #: 模拟 SF2 无法识别（退出码 0 但输出错误文本 —— Windows fluidsynth 实际行为）
-_BROKEN_RUNNER = lambda cmd: SimpleNamespace(
-    returncode=0,
-    stdout="",
-    stderr="fluidsynth: error: fluid_is_soundfont(): fopen() failed: 'File does not exist.'\n"
-    "Parameter '/tmp/x.sf2' not a SoundFont or MIDI file or error occurred identifying it.",
-)
+def _BROKEN_RUNNER(cmd):
+    return SimpleNamespace(
+        returncode=0,
+        stdout="",
+        stderr="fluidsynth: error: fluid_is_soundfont(): fopen() failed: 'File does not exist.'\n"
+        "Parameter '/tmp/x.sf2' not a SoundFont or MIDI file or error occurred identifying it.",
+    )
 
 
 def _make_cfg(tmp_path, *, fluidsynth=None, soundfont=None, soundfont_backup=None) -> Config:
