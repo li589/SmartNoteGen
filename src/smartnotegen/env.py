@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -282,17 +283,24 @@ class PathResolver:
         因此以「退出码 0 且无上述错误文本」作为可加载判定。
 
         另：加载 SF2 会一并初始化音频输出，无声卡环境（CI 容器）会因此失败。
-        故类 Unix 平台显式使用 dummy 哑驱动（见 platform_paths.sf2_probe_audio_args），
-        避免把合法音色库误判为 BROKEN。
+        故显式使用 `file` 写入驱动绕开音频设备（见 platform_paths.sf2_probe_audio_args），
+        避免把合法音色库误判为 BROKEN；该驱动会在 cwd 写出 fluidsynth.wav，
+        因此用临时目录作为 cwd，不污染工作目录。
         """
         cmd = [str(fs), "-ni", *sf2_probe_audio_args(), str(sf)]
         try:
             if self.runner is not None:
                 result = self.runner(cmd)
             else:
-                result = subprocess.run(
-                    cmd, capture_output=True, text=True, timeout=20, stdin=subprocess.DEVNULL
-                )
+                with tempfile.TemporaryDirectory() as probe_cwd:
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=20,
+                        stdin=subprocess.DEVNULL,
+                        cwd=probe_cwd,
+                    )
         except Exception:  # 启动失败/超时/注入 runner 抛错 -> 视为不可加载
             logger.warning("SF2 加载校验失败（无法启动 fluidsynth 或超时）: %s", sf)
             return False

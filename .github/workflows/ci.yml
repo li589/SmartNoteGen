@@ -16,6 +16,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Pull SoundFonts from Git LFS
+        run: |
+          # module/ 下的 .sf2 / .exe / .dll / .ogg 由 .gitattributes 交给 Git LFS 管理。
+          # checkout 默认不拉取 LFS 实体，拿到的是文本指针文件（"version https://git-lfs..."），
+          # 会让 SoundFont 可加载性校验失败并把合法音色库误判为 BROKEN（ModuleError 7）。
+          # 只拉必需的 .sf2，避免为 demo 音频（.ogg）浪费 LFS 带宽。
+          git lfs install --local
+          git lfs pull --include="module/GeneralUser_GS/**/*.sf2"
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -40,14 +49,21 @@ jobs:
         run: |
           fluidsynth --version
           ffmpeg -version | head -n 1
-          test -f module/GeneralUser_GS/GeneralUser-GS/GeneralUser-GS.sf2
-          echo "--- 可用音频驱动 ---"
-          fluidsynth -a help 2>&1 | head -n 5 || true
-          echo "--- SF2 加载探测（与 _probe_sf2_loadable 同命令）---"
+          echo "--- SoundFont 实体校验（LFS 未拉取时会退化为文本指针）---"
+          sf=module/GeneralUser_GS/GeneralUser-GS/GeneralUser-GS.sf2
+          test -f "$sf"
+          if head -c 4 "$sf" | grep -q RIFF; then
+            echo "文件头 RIFF ✓ 实体已就位（大小 $(du -h "$sf" | cut -f1)）"
+          else
+            echo "!! $sf 不是 RIFF 开头 —— 多半是 Git LFS 指针文件，SoundFont 校验必然失败"
+            head -c 40 "$sf"
+            exit 1
+          fi
+          echo "--- SF2 加载探测（与 _probe_sf2_loadable 同命令，file 驱动免声卡）---"
           set +e
-          timeout 30 fluidsynth -ni -a dummy module/GeneralUser_GS/GeneralUser-GS/GeneralUser-GS.sf2 > /tmp/sf2probe.log 2>&1
+          timeout 30 fluidsynth -ni -a file "$sf" > /tmp/sf2probe.log 2>&1
           echo "exit_code=$?"
-          tail -n 15 /tmp/sf2probe.log
+          tail -n 10 /tmp/sf2probe.log
           set -e
 
       - name: Test with pytest

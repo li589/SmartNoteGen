@@ -43,12 +43,21 @@
   - `ci.yml` 增加 `apt-get install fluidsynth ffmpeg`，并新增「渲染环境自检」步骤
     （校验 fluidsynth/ffmpeg 可用 + SoundFont 存在），让环境问题早暴露。
     SoundFont 与 Windows 二进制本就随版本控制入库（293M），CI 无需额外下载。
-- **SF2 可加载性校验不再依赖音频设备**：fluidsynth 加载 SoundFont 时会一并初始化
-  音频输出，CI 容器没有声卡，导致合法音色库被误判为 BROKEN（进而抛 ModuleError(7)，
-  表现为 `test_inspire_diff::test_new_non_tty` 返回 7）。类 Unix 平台改为显式使用
-  `dummy` 哑驱动；Windows 发行版**不含 dummy**（实测可用驱动仅
-  dsound/file/wasapi/waveout），故不加参数、行为不变。
-  CI 自检步骤同时打印音频驱动列表与 SF2 加载退出码，便于定位此类环境问题。
+- **CI 拉取 Git LFS 实体（SoundFont）**：`module/**/*.sf2|exe|dll|ogg` 由
+  `.gitattributes` 交给 Git LFS 管理，而 `actions/checkout` 默认**不拉取 LFS 实体**，
+  CI 上拿到的是文本指针文件（以 `version https://git-lfs...` 开头）。fluidsynth 读到的
+  前 4 字节是 `vers` 而非 `RIFF`，遂把合法音色库判为 BROKEN，进而抛 ModuleError(7)
+  （表现为 `test_inspire_diff::test_new_non_tty` 返回 7）。CI 增加
+  `git lfs pull --include="module/GeneralUser_GS/**/*.sf2"`，只拉必需音色库、
+  不为 demo `.ogg` 消耗 LFS 带宽。
+- **SF2 可加载性校验不再依赖声卡**：fluidsynth 加载 SoundFont 时会一并初始化音频输出，
+  CI 容器没有声卡会让校验失败。改用 `file`（写入）驱动绕开音频设备——该驱动在
+  Windows 与 Linux 版 fluidsynth 上都存在，故无需平台分支；并以临时目录作为 cwd
+  隔离其产出的 `fluidsynth.wav`，不污染工作目录。
+  （对比记录：一度尝试 `dummy` 哑驱动，但 Ubuntu 版 fluidsynth 并不编译 dummy
+  ——实测驱动为 alsa/file/jack/oss/pipewire/pulseaudio/sdl2，故该方案被否决。）
+- **CI 自检步骤加强**：打印 SoundFont 文件头校验（RIFF）与大小、SF2 加载退出码，
+  让「LFS 未拉取」这类环境问题在跑测试前就暴露。
 - **跨平台测试修正**：占位二进制（`b"MZ"`）统一补 `chmod(0o755)`。POSIX 的
   `os.access(X_OK)` 要求真实执行位（Windows 上等价于存在性检查），此前
   `test_env.py` 3 例在 CI 上因此把「存在的假二进制」误判为 BROKEN。

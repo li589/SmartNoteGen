@@ -41,14 +41,16 @@ def system_fluidsynth() -> Optional[Path]:
 def sf2_probe_audio_args() -> list[str]:
     """SF2 加载校验所需的音频驱动参数（插在可执行文件之后、文件参数之前）。
 
-    fluidsynth 加载 SoundFont 时会**一并初始化音频输出**。CI 容器没有声卡，
-    真实 Linux 版会因「无法打开音频设备」而失败，使 SoundFont 可加载性校验
-    把合法音色库误判为 BROKEN，进而抛 ModuleError(7)。
+    fluidsynth 加载 SoundFont 时**会一并初始化音频输出**。CI 容器没有声卡，
+    默认的 alsa 驱动创建失败，会让 SoundFont 可加载性校验把合法音色库误判为
+    BROKEN，进而抛 ModuleError(7)。
 
-    类 Unix 平台显式指定 `dummy`（哑）驱动即可跳过音频设备；
-    Windows 发行版**不含 dummy**（实测可用驱动仅 dsound/file/wasapi/waveout），
-    故不加参数、保持既有行为。
+    改用 `file`（写入文件）驱动即可完全绕开音频设备。该驱动在 Windows 与
+    类 Unix 版 fluidsynth 上**都存在**（实测：Windows 为
+    dsound/file/wasapi/waveout；Ubuntu 为 alsa/file/jack/oss/pipewire/
+    pulseaudio/sdl2），故无需平台分支。
+
+    注意：`file` 驱动会在进程工作目录写出 `fluidsynth.wav`，
+    调用方须以临时目录作为 cwd（见 `env.PathResolver._probe_sf2_loadable`）。
     """
-    if IS_WINDOWS:
-        return []
-    return ["-a", "dummy"]
+    return ["-a", "file"]

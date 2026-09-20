@@ -369,20 +369,13 @@ def test_resolve_fluidsynth_non_module_no_fallback_raises_4(tmp_path, monkeypatc
 # SF2 加载校验的音频驱动：无声卡环境（CI 容器）不能因音频设备失败而误判
 # ---------------------------------------------------------------------------
 
-def test_sf2_probe_audio_args_windows(monkeypatch):
-    """Windows 不加音频驱动参数（发行版不含 dummy：仅 dsound/file/wasapi/waveout）。"""
-    monkeypatch.setattr(platform_paths, "IS_WINDOWS", True)
-    assert platform_paths.sf2_probe_audio_args() == []
+def test_sf2_probe_audio_args_uses_file_driver():
+    """统一用 file 写入驱动：绕开音频设备，且两平台都有（故无需平台分支）。"""
+    assert platform_paths.sf2_probe_audio_args() == ["-a", "file"]
 
 
-def test_sf2_probe_audio_args_posix(monkeypatch):
-    """POSIX 用 dummy 哑驱动，跳过音频设备初始化。"""
-    monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
-    assert platform_paths.sf2_probe_audio_args() == ["-a", "dummy"]
-
-
-def test_probe_sf2_loadable_command_includes_dummy_on_posix(tmp_path, monkeypatch):
-    """POSIX 上 SF2 校验命令确实带上 dummy 驱动参数。"""
+def test_probe_sf2_loadable_command_includes_file_driver(tmp_path):
+    """SF2 校验命令确实带上 file 驱动参数（不依赖真实声卡）。"""
     fs_bin = tmp_path / "fluidsynth"
     fs_bin.write_bytes(b"MZ")
     sf = tmp_path / "x.sf2"
@@ -394,10 +387,30 @@ def test_probe_sf2_loadable_command_includes_dummy_on_posix(tmp_path, monkeypatc
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
     cfg = _make_cfg(tmp_path, fluidsynth=str(fs_bin), soundfont=str(sf))
-    monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
     resolver = PathResolver(cfg, project_root=tmp_path, runner=_runner)
 
     assert resolver._probe_sf2_loadable(fs_bin, sf) is True
     cmd = captured["cmd"]
     assert cmd[1] == "-ni"
-    assert cmd[2:4] == ["-a", "dummy"]
+    assert cmd[2:4] == ["-a", "file"]
+
+
+def test_probe_sf2_loadable_uses_isolated_cwd(tmp_path):
+    """真实执行路径须以临时目录为 cwd —— file 驱动会在 cwd 写出 fluidsynth.wav。"""
+    fs_bin = tmp_path / "fluidsynth"
+    fs_bin.write_bytes(b"MZ")
+    sf = tmp_path / "x.sf2"
+    sf.write_bytes(b"RIFFx")
+    captured: dict = {}
+
+    def _fake_run(cmd, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    cfg = _make_cfg(tmp_path, fluidsynth=str(fs_bin), soundfont=str(sf))
+    resolver = PathResolver(cfg, project_root=tmp_path)  # 不注入 runner -> 走真实 subprocess 分支
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr("smartnotegen.env.subprocess.run", _fake_run)
+        assert resolver._probe_sf2_loadable(fs_bin, sf) is True
+
+    assert captured.get("cwd"), "应以临时目录作为 cwd 以隔离 fluidsynth.wav"
