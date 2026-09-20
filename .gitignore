@@ -27,6 +27,16 @@ module/fluidsynth_qa_hidden/
 # ===== 根目录测试残留（test_generators 写入 CWD）=====
 /*.mid
 
+# ===== tests/ 调试产物（videomaker / render 手动冒烟输出，勿入库）=====
+# 53 mp4 + 20 png + 11 wav + 1 mp3，均为调试时写出的中间产物；
+# 已确认 29 个 tests/*.py 均未引用它们（test_videomaker 用的是 tmp_path 临时文件）。
+# 以下规则只匹配 tests/ 下一层，不影响子目录——将来若要加测试 fixture，
+# 请放 tests/fixtures/ 或 tests/data/ 子目录，不会被误忽略。
+tests/*.mp4
+tests/*.wav
+tests/*.png
+tests/*.mp3
+
 # ===== 灵感库数据库（运行态生成，不入库）=====
 smartnotegen.db
 
