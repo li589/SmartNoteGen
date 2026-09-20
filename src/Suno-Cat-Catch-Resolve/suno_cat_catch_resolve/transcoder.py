@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -28,7 +29,19 @@ from suno_cat_catch_resolve.fmp4 import is_fragmented_mp4
 
 PathLike = Union[str, Path]
 
-# 本机已知安装位置（找不到时依次尝试）
+# 可执行文件名候选：Windows 是 ffmpeg.exe，POSIX 无后缀。两平台都试，不做平台分支。
+_EXE_NAMES = ("ffmpeg.exe", "ffmpeg")
+
+# 环境变量：显式指定 ffmpeg，值可以是**可执行文件**，也可以是**所在目录**。
+# 优先级高于 PATH——PATH 上常挂着版本不符/残缺的 ffmpeg，显式指定能压过它。
+# 双写法沿用主包约定（见 smartnotegen/ai/diffrhythm.py: DIFFRHYTHM_DIR / SMARTNOTEGEN_DIFFRHYTHM_DIR）。
+FFMPEG_ENV_VARS = ("SUNO_FFMPEG", "SMARTNOTEGEN_FFMPEG")
+
+# 环境变量：追加搜索目录，os.pathsep 分隔（Windows `;` / POSIX `:`）。
+# 用途是换机后**不必改源码**——本机已知目录是兜底，不该是唯一出路。
+FFMPEG_DIRS_ENV_VAR = "SUNO_FFMPEG_DIRS"
+
+# 本机已知安装位置（**兜底**；仅在本机有效）。换机请用上面的环境变量或 --ffmpeg-path。
 KNOWN_FFMPEG_DIRS = [
     r"D:\myPrograms\FFmpge\ffmpeg-master-latest-win64-gpl\bin",
     r"C:\Program Files\ffmpeg\bin",
@@ -36,10 +49,44 @@ KNOWN_FFMPEG_DIRS = [
 ]
 
 
+def _candidate_in(directory: PathLike) -> Optional[Path]:
+    """在目录下查找 ffmpeg 可执行文件，找不到返回 None。"""
+    for name in _EXE_NAMES:
+        candidate = Path(directory) / name
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _find_in_env() -> Optional[Path]:
+    """按环境变量定位 ffmpeg；值可以是可执行文件，也可以是目录。"""
+    for var in FFMPEG_ENV_VARS:
+        raw = os.environ.get(var)
+        if not raw:
+            continue
+        target = Path(raw)
+        if target.is_file():
+            return target
+        if target.is_dir():
+            found = _candidate_in(target)
+            if found:
+                return found
+        # 值写了但无效（路径不存在）→ 继续尝试下一个来源，不直接报错：
+        # 环境变量写错不该比「根本没设」更糟。
+    return None
+
+
+def _env_search_dirs() -> List[Path]:
+    """环境变量 FFMPEG_DIRS_ENV_VAR 给出的搜索目录（pathsep 分隔）。"""
+    raw = os.environ.get(FFMPEG_DIRS_ENV_VAR, "")
+    return [Path(p) for p in raw.split(os.pathsep) if p.strip()]
+
+
 def find_ffmpeg(path: Optional[PathLike] = None) -> Path:
     """定位 ffmpeg 可执行文件。
 
-    顺序：显式参数 > PATH > 已知安装目录。
+    顺序：显式参数 > 环境变量（SUNO_FFMPEG） > PATH >
+    环境变量目录（SUNO_FFMPEG_DIRS） > 本机已知安装目录。
     """
     if path:
         candidate = Path(path)
@@ -47,15 +94,18 @@ def find_ffmpeg(path: Optional[PathLike] = None) -> Path:
             return candidate
         raise FFmpegNotFoundError()
 
+    found = _find_in_env()
+    if found:
+        return found
+
     which = shutil.which("ffmpeg")
     if which:
         return Path(which)
 
-    for directory in KNOWN_FFMPEG_DIRS:
-        for name in ("ffmpeg.exe", "ffmpeg"):
-            candidate = Path(directory) / name
-            if candidate.is_file():
-                return candidate
+    for directory in [*_env_search_dirs(), *KNOWN_FFMPEG_DIRS]:
+        found = _candidate_in(directory)
+        if found:
+            return found
 
     raise FFmpegNotFoundError()
 

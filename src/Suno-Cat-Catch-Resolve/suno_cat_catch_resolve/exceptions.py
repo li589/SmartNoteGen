@@ -23,8 +23,11 @@ class SunoError(Exception):
 class FFmpegNotFoundError(SunoError):
     def __init__(self) -> None:
         super().__init__(
-            "ffmpeg 未找到。请确保 ffmpeg 已安装并加入 PATH，"
-            "或通过 --ffmpeg-path / find_ffmpeg(path=...) 指定绝对路径。",
+            "ffmpeg 未找到。按以下顺序任选一种修法：\n"
+            "  1. 设置环境变量 SUNO_FFMPEG=<ffmpeg 可执行文件或其所在目录>\n"
+            "  2. 把 ffmpeg 加入 PATH\n"
+            "  3. 设置 SUNO_FFMPEG_DIRS=<目录1;目录2>（多目录用系统分隔符）\n"
+            "  4. 传参 --ffmpeg-path / find_ffmpeg(path=...) 指定绝对路径",
             code=20,
         )
 

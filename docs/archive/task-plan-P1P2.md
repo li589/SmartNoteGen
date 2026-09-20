@@ -1,6 +1,6 @@
 # SmartNoteGen 任务分解与实施计划（P1 + P2 增量）
 
-> 版本：v1.1 ｜ 作者：高见远（Architect） ｜ 日期：2025-08-09
+> 版本：v1.1 ｜ 作者：高见远（Architect） ｜ 日期：2026-08-09
 > 上游输入：`docs/PRD-P1P2.md`（增量 PRD v1.1）+ `docs/architecture-P1P2.md`（增量架构 v1.1）+ `docs/task-plan.md`（P0 计划 v1.0）
 > 状态：待评审
 > **兼容承诺：全部任务完成后，既有 106 测试保持全绿；新增模块测试全绿；覆盖率 ≥80%。**

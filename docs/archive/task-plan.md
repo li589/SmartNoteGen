@@ -1,6 +1,6 @@
 # SmartNoteGen 任务分解与实施计划
 
-> 版本：v1.0 ｜ 作者：高见远（Architect） ｜ 日期：2025-08-09
+> 版本：v1.0 ｜ 作者：高见远（Architect） ｜ 日期：2026-08-09
 > 上游输入：PRD v1.0（docs/PRD.md）+ 架构设计（docs/architecture.md）
 > 状态：待评审
 

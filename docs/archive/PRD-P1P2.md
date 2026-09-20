@@ -1,6 +1,6 @@
 # SmartNoteGen 增量 PRD（P1 + P2）
 
-> 版本：v1.1（增量 PRD）｜ 作者：许清楚（Product Manager）｜ 日期：2025-08-09
+> 版本：v1.1（增量 PRD）｜ 作者：许清楚（Product Manager）｜ 日期：2026-08-09
 > 状态：待架构师评审
 > 关联文档：`docs/PRD.md`（v1.0，P0 已交付）、`docs/ai-integration.md`（P1 AI 集成说明）、`docs/architecture.md`
 

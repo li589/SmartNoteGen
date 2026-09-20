@@ -128,6 +128,7 @@ videomaker multi x.wav --presets douyin,youtube,instagram,official \
 
 ```bash
 pip install -e src/Suno-Cat-Catch-Resolve      # 独立安装，需 ffmpeg
+export SUNO_FFMPEG=/d/tools/ffmpeg/bin/ffmpeg.exe   # ffmpeg 不在 PATH 时：指文件或指目录
 
 suno-cat-catch-resolve probe  "Suno _ AI Music.mp3"      # 取证判定
 suno-cat-catch-resolve decode "Suno _ AI Music.mp3" -o ./out

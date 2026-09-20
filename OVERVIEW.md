@@ -25,6 +25,7 @@
 ## 关键决策
 
 - **未盲目升级第三方依赖**。环境已处于项目锁定的精确版本（base/dev/ai 锁定的 typer、music21、numpy、torch 2.5.1+cu121、audiocraft 等完全一致）。盲升会破坏脆弱的 cu121 torch / audiocraft（git 依赖）/ xformers 环境，得不偿失。
+- **`xformers` 与 torch 对齐**（2026-09-20 修正）：torch 仍钉 `2.5.1+cu121` **不动**，改把 xformers 修正为与它配对的 `0.0.28.post3`——原先误装的是面向 torch 2.6.0 的 `0.0.29.post3`，只会打印 `xFormers can't load C++/CUDA extensions` 并静默退化（内存高效注意力不可用）。这么选的理由同上：升 torch 等于动 audiocraft / DiffRhythm 整条链路，降 xformers 只动一个包且可回退。安装命令与索引说明见 `requirements/ai.txt`。
 - 「我的软件更新到最新版本」= 项目自身包 `smartnotegen` 的元数据同步（0.1.0 → 0.5.2），而非第三方依赖。
 
 ## 已知缺口（可选，非核心管线）

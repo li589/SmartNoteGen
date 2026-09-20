@@ -1,6 +1,6 @@
 # SmartNoteGen 产品需求文档（PRD）
 
-> 版本：v1.0（简单 PRD）｜ 作者：许清楚（Product Manager）｜ 日期：2025-08-09
+> 版本：v1.0（简单 PRD）｜ 作者：许清楚（Product Manager）｜ 日期：2026-08-09
 > 状态：待架构师评审
 
 ---

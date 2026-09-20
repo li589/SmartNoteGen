@@ -2,10 +2,19 @@
 # 安装顺序（重要）：
 #   1. 先装 CUDA 版 torch + torchaudio（RTX 4060 / CUDA 12.1，务必用 cu121 索引避免装回 CPU 版）：
 #        pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
-#   2. 再装其余：
+#   2. 再装与 torch 配对的 xformers（**索引固定 cu124，理由见下方 xformers 段**）：
+#        pip install xformers==0.0.28.post3 --index-url https://download.pytorch.org/whl/cu124
+#   3. 最后装其余：
 #        pip install -r requirements/ai.txt
+#      （本文件里的 xformers 行此时已满足，属幂等声明，用于锁定版本、防漂移。）
 #
 # 注意：
+#   - **不要用 `pip install -r requirements/ai.txt --index-url .../cu124` 一把梭**：
+#     第 1 步的 torch 会被同索引下的另一个构建顶掉。三步分开装才可控。
+#   - `pip install -r requirements/ai.txt` 时出现的 audiocraft 依赖冲突告警
+#     （torch==2.1.0 / torchvision==0.16.0 / xformers<0.0.23 等）是**既有现象、非本文件引入**：
+#     本项目刻意跑在 torch 2.5.1 上（见 OVERVIEW.md「未盲目升级第三方依赖」），
+#     audiocraft 声明的 pin 在本机从未被满足过。只要 MusicGen 能出音频即可忽略。
 #   - DiffRhythm 官方仓库不可 pip 安装（无 setup.py/pyproject.toml），需手动克隆：
 #        git clone https://github.com/ASLP-lab/DiffRhythm.git module/diffrhythm
 #     并安装其 requirements.txt 中的运行依赖（下方已列出等价清单，去除 torch/torchaudio
@@ -17,6 +26,23 @@
 audiocraft@git+https://github.com/facebookresearch/audiocraft.git
 transformers==4.40.0
 diffusers==0.27.0
+
+# --- xformers（版本必须与上面第 1 步装的 torch 严格配对） ---
+# xformers 的预编译轮子与 torch 版本**一一绑定**（见其 CHANGELOG）：
+#   xformers 0.0.28.post3  → torch 2.5.1     ← 本项目用这个
+#   xformers 0.0.29.*      → torch 2.6.0
+# 装错版本不会报错，只会在 import 时打印
+#   "WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions"
+# 内存高效注意力静默退化为普通实现（2026-08-09 QA 遗留观察第 6 条即此）。
+#
+# 索引必须写 cu124：Windows 上 0.0.28.post3 的 win_amd64 轮子**只在 cu124 索引发布**
+# （2026-09-20 实测：cu118 / cu121 索引的 win_amd64 轮子最高只到 0.0.24）。
+# Linux 侧 cu121 索引也有，但统一写 cu124 可两平台共用一条命令。
+#
+# 校验（应无 WARNING，且 GPU 实跑有输出）：
+#   python -c "import torch;from xformers.ops import memory_efficient_attention as m;\
+#     q=torch.rand(1,64,4,32,device='cuda',dtype=torch.float16);print(m(q,q,q).shape)"
+xformers==0.0.28.post3
 
 # --- DiffRhythm 运行依赖（等价于官方 requirements.txt，去掉 torch/torchaudio） ---
 accelerate==1.4.0

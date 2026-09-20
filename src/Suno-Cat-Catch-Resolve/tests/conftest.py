@@ -31,6 +31,20 @@ def pytest_configure(config):
         config.option.basetemp = str(base)
 
 
+@pytest.fixture(autouse=True)
+def _isolate_ffmpeg_env(monkeypatch):
+    """清空 ffmpeg 定位相关环境变量，保证 find_ffmpeg 的用例结果只由用例自己决定。
+
+    若开发机真的设了 SUNO_FFMPEG / SMARTNOTEGEN_FFMPEG / SUNO_FFMPEG_DIRS，
+    下面那些「应当回落到 PATH / 已知目录 / 抛错」的用例会静默变成假绿或假红。
+    环境相关的测试不该被运行者机器的环境左右。
+    """
+    from suno_cat_catch_resolve import transcoder
+
+    for var in (*transcoder.FFMPEG_ENV_VARS, transcoder.FFMPEG_DIRS_ENV_VAR):
+        monkeypatch.delenv(var, raising=False)
+
+
 # -- 合成 ISO BMFF 样本 -----------------------------------------------------
 
 def box(atom_type: bytes, payload: bytes) -> bytes:

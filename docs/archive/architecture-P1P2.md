@@ -1,6 +1,6 @@
 # SmartNoteGen 增量架构设计（P1 + P2）
 
-> 版本：v1.1 ｜ 作者：高见远（Architect） ｜ 日期：2025-08-09
+> 版本：v1.1 ｜ 作者：高见远（Architect） ｜ 日期：2026-08-09
 > 上游输入：`docs/PRD-P1P2.md`（增量 PRD v1.1，许清楚产出）+ `docs/architecture.md`（P0 架构 v1.0）+ `docs/task-plan.md` + `docs/ai-integration.md` + `src/smartnotegen/`（P0 已实现代码）
 > 状态：待评审
 > **硬性兼容承诺：本设计所有改动不得破坏既有 106 个测试（P0 全绿基线）**

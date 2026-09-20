@@ -72,19 +72,21 @@
   `_apply_detected_to_config` 的 bpm 无引号写入与反斜杠转义。
 - 覆盖率：`commands/helpers.py` 73% → **100%**；整体本地 **87.24% → 88.48%**，
   把与 87% 门槛的余量从 0.01pp 拉到 ~1.2pp（此前任何新增分支都可能误红 CI）。
-- **`src/Suno-Cat-Catch-Resolve/` 新增测试套件（138 例，语句覆盖率 100%）**：
+- **`src/Suno-Cat-Catch-Resolve/` 新增测试套件（147 例，语句覆盖率 100%）**：
   该子包此前**零测试**。四个测试文件分别覆盖：
   - `test_fmp4.py`：原子解析（32/64 位长度、size=0 延伸至 EOF、非 ASCII 类型中断、
     截断输入）、mdat 分片拼接、`summarize` 统计；
   - `test_forensics.py`：熵 / 卡方 / 周期扫描的边界与判据常量、五种容器魔数 +
     MP3 帧同步识别、明文 / 强加密 / 弱加密（重复密钥 XOR）三条判定分支；
-  - `test_transcoder.py`：ffmpeg 定位与三层回落、`_sanitize` 规整、异常分级
-    （20/21/22/23/24）、`decode_fmp4` 全分支；
+  - `test_transcoder.py`：ffmpeg 定位与五级回落（含环境变量两层）、`_sanitize` 规整、
+    异常分级（20/21/22/23/24）、`decode_fmp4` 全分支；
   - `test_cli.py`：`probe` / `decode` / `batch` / `version` 四命令，退出码 2/22/23，
     batch 汇总报告与「非 fMP4 静默跳过」语义。
   - 设计要点：合成样本用纯 Python 拼 ISO BMFF 原子（单元测试不依赖 ffmpeg）；
     密文样本用**固定种子**生成以保证 χ² 稳定；**每个文件末尾都保留真实 ffmpeg
     端到端用例**（缺 ffmpeg 自动 skip），避免「只在 mock 下成立」的假绿。
+  - conftest 有 autouse fixture 清空 `SUNO_FFMPEG*` 环境变量：ffmpeg 定位类用例
+    不该被运行者机器的环境左右（否则「应回落 / 应报错」的用例会静默假绿假红）。
   - 新增子包覆盖率配置（`fail_under = 95`、omit `__main__.py`、排除 `__main__` 守卫行）。
 
 ### 工程化（CI）
@@ -94,6 +96,10 @@
   这正是它此前长期「无测试、无人发现」的机制性原因。
   该 job 已装 ffmpeg，因此子包里的真实端到端用例会真正执行而非 skip。
 - 顺带修正：`src/videomaker/pyproject.toml` 版本号 → `0.3.0`（详见下方 docs 条目）。
+- **CI runner 由 `ubuntu-latest` 钉为 `ubuntu-24.04`**：`ubuntu-latest` 当前解析到
+  24.04，但 GitHub 会择期把它切到 26.04（滚动标签不由本项目控制）。本项目 CI 依赖
+  apt 的 fluidsynth/ffmpeg 与 Git LFS 实体，一次静默的基础镜像切换足以让刚修好的
+  CI 重新变红。钉住版本后，升级变成**由我们决定时机**的动作。
 
 ### 工程化（仓库卫生）
 - **取消跟踪 `.coverage`**：该文件早已在 `.gitignore` 中，却仍是 git 跟踪对象，
@@ -107,12 +113,45 @@
   但复核确认 `test_generators.py` 三例均已显式使用 `tmp_path`，全量跑测后根目录
   无任何 `.mid` 残留——规则保留作防御网，注释改为反映真实情况（触发条件已不复现）。
 
+### 修复
+- **ffmpeg 定位不再只靠硬编码本机路径**（`suno_cat_catch_resolve/transcoder.py`）：
+  原顺序为「显式参数 > PATH > 三个硬编码 Windows 目录」，换机即失效。现改为
+  **显式参数 > `SUNO_FFMPEG`（文件或目录） > PATH > `SUNO_FFMPEG_DIRS`（pathsep 多目录）
+  > 硬编码兜底**，硬编码条目降级为最后手段并注明"仅本机有效"。
+  环境变量写了无效路径时继续回落而非直接报错；空串等同未设置。
+  `FFmpegNotFoundError` 的消息改为逐条列出四种修法。
+  测试侧新增 autouse fixture 清空这三个环境变量，避免开发机自身的环境
+  把「应回落到 PATH / 应抛错」的用例变成假绿或假红。
+- **统一 `xformers` 与 `torch` 版本**（`requirements/ai.txt`）：本机 torch 为
+  `2.5.1+cu121`，而装的是 `xformers 0.0.29.post3`（为 **torch 2.6.0** 构建），
+  导致 `xFormers can't load C++/CUDA extensions`、内存高效注意力不可用（2026-08-09
+  QA 遗留观察第 6 条）。xformers 的轮子与 torch 版本严格绑定（其 CHANGELOG：
+  `0.0.28.post3` 要求 PyTorch 2.5.1；`0.0.29.*` 要求 2.6.0），故**不改 torch**
+  （项目刻意锁定 cu121，避免动到 audiocraft / DiffRhythm 链路），改**钉住 xformers**：
+  `xformers==0.0.28.post3 --index-url https://download.pytorch.org/whl/cu124`。
+  注：Windows 上 `0.0.28.post3` 的轮子**只发布在 cu124 索引**（2026-09-20 实测：
+  cu118/cu121 索引的 win_amd64 轮子最高到 `0.0.24`），故索引写 cu124。
+
+### 工程化（CI）
+- **CI runner 由 `ubuntu-latest` 钉为 `ubuntu-24.04`**：`ubuntu-latest` 当前解析到
+  24.04，但 GitHub 会择期把它切到 26.04（滚动标签不由本项目控制）。本项目 CI 依赖
+  apt 的 fluidsynth/ffmpeg 与 Git LFS 实体，一次静默的基础镜像切换足以让刚修好的
+  CI 重新变红。钉住版本把升级变成**由我们决定时机**的动作。
+
 ### 文档
+- **统一 CHANGELOG 早期版本日期**：`[0.1.0]` / `[0.2.0]` 原写作 `2025-08-09`，
+  与 `[0.3.0]` 起的 2026 年时间线相差整一年。以 git 首个提交
+  （`359e041` `2026-08-09` *Initial commit: SmartNoteGen v0.1.0*）为准，
+  二者均为 `2026-08-09`；`docs/` 下 6 处同类日期一并更正。
+  （MM-DD 保持不动：git 中 `v0.2.0` / `v0.3.0` 的提交日确比 CHANGELOG 记录的
+  **发布日**晚 1–2 天，属"先发布后提交"，非错误。）
 - `README.md` 新增「Suno-Cat-Catch-Resolve 子项目」一节（含两类产物对照表与命名约定）。
 - videomaker 交付报告归档至 `reports/`（v0.1 → v0.3.0 共 4 份）。
 - **新增「子项目变更历史：videomaker」附录**（本文件末尾）：把此前只散落在 `reports/`
   的 v0.1.0 → v0.3.0 版本线正式并入主 CHANGELOG，含各版能力、已知限制与测试规模。
 - `reports/ci-remediation-plan.md`：CI 修复路线与决策记录。
+- `src/Suno-Cat-Catch-Resolve/README.md`：补 ffmpeg 定位的四种方式与 `SUNO_FFMPEG*`
+  环境变量说明；测试数更新为 147 例。
 
 ## [0.5.4] - 2026-09-20（旋律生成增强：动机驱动乐句 + 伴奏织体 + 读回拍速修复）
 
@@ -215,7 +254,7 @@
 - **doctor 子命令**：一键环境诊断（Python/fluidsynth/SF2/CUDA/AI 依赖/espeak）
 - **config 预览节**：[preview] 配置 + --no-preview
 
-## [0.2.0] - 2025-08-09（P1 二期 AI 冲刺）
+## [0.2.0] - 2026-08-09（P1 二期 AI 冲刺）
 
 ### 新增（T-S1 / T-P1-1 / T-P1-2）
 
@@ -231,7 +270,7 @@
 - 既有 3 个 P0 环境假设测试（`test_ai_musicgen_exit_6` / `test_ai_diffrhythm_exit_6` / `test_ai_adapters_unavailable_in_p0`）改为 monkeypatch find_spec，保证在"已安装 AI 依赖"的环境（如本机二期环境）与"未安装"环境均稳定通过。
 - 覆盖率配置：`pyproject.toml` 不再 omit `src/smartnotegen/ai/*`（AI 模块测试计入覆盖率；AI 适配器顶部零 torch import，推理路径由 mock 测试覆盖）。
 
-## [0.1.0] - 2025-08-09（P1 一期非 AI 冲刺增量）
+## [0.1.0] - 2026-08-09（P1 一期非 AI 冲刺增量）
 
 ### 新增（P0 里程碑）
 

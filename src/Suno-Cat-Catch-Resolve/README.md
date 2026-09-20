@@ -71,7 +71,28 @@ python -m suno_cat_catch_resolve version
 ```
 
 核心层（`fmp4` / `forensics` / `transcoder`）**零第三方依赖**；只有 `cli.py` 需要 `typer`。
-另需 ffmpeg（自动查找 PATH，或 `--ffmpeg-path` 指定）。
+
+### ffmpeg 定位（四种方式，按优先级）
+
+`find_ffmpeg()` 依次尝试，命中即返回：
+
+| 顺序 | 方式 | 说明 |
+|---|---|---|
+| 1 | `--ffmpeg-path` / `find_ffmpeg(path=...)` | 显式传参，最高优先级 |
+| 2 | 环境变量 `SUNO_FFMPEG` | 值可以是**可执行文件**，也可以是**所在目录**；高于 PATH，用来压过 PATH 上版本不符的 ffmpeg |
+| 3 | `PATH` | `shutil.which("ffmpeg")` |
+| 4 | 环境变量 `SUNO_FFMPEG_DIRS` | 追加搜索目录，多目录用系统分隔符（Windows `;` / POSIX `:`） |
+| 5 | 硬编码本机目录 | 兜底，仅本机有效 |
+
+```bash
+export SUNO_FFMPEG="/d/tools/ffmpeg/bin/ffmpeg.exe"        # Git Bash：直接指文件
+set SUNO_FFMPEG=D:\tools\ffmpeg\bin                        # ...或指目录（自动找 ffmpeg.exe）
+set SUNO_FFMPEG_DIRS=D:\tools\ffmpeg\bin;E:\ffmpeg\bin      # 多目录
+```
+
+`SMARTNOTEGEN_FFMPEG` 是同一约定的别名（沿用主包 `DIFFRHYTHM_DIR` 的双写法）。
+环境变量写成无效路径时**继续回落**而非直接报错；空串等同未设置。
+四处都找不到才抛 `FFmpegNotFoundError`（错误码 20），消息里会列出全部可选修法。
 
 ## 三、CLI
 
@@ -145,16 +166,21 @@ cd src/Suno-Cat-Catch-Resolve
 python -m pytest --cov --cov-report=term-missing   # 覆盖率门槛 95%（实测 100%）
 ```
 
-138 例，覆盖 `fmp4` / `forensics` / `transcoder` / `cli` 全部模块（语句覆盖率 100%）：
+147 例，覆盖 `fmp4` / `forensics` / `transcoder` / `cli` 全部模块（语句覆盖率 100%）：
 
 | 文件 | 重点 |
 |---|---|
 | `test_fmp4.py` | 原子解析（32/64 位长度、size=0 到 EOF、非 ASCII 类型中断、截断）、mdat 拼接、`summarize` |
 | `test_forensics.py` | 熵 / 卡方 / 周期扫描的边界与**判据**、五种容器魔数 + MP3 帧同步、明文/密文/弱加密三条判定分支 |
-| `test_transcoder.py` | ffmpeg 定位与回落、`_sanitize`、异常分级、`decode_fmp4` 全分支；**末尾用真实 ffmpeg 跑端到端** |
+| `test_transcoder.py` | ffmpeg 定位五级回落（参数 → `SUNO_FFMPEG` → PATH → `SUNO_FFMPEG_DIRS` → 硬编码）、`_sanitize`、异常分级、`decode_fmp4` 全分支；**末尾用真实 ffmpeg 跑端到端** |
 | `test_cli.py` | 四个子命令、退出码 2/22/23、batch 汇总报告；**末尾绕开 mock 走真实链路** |
 
 要点：
+
+- **环境相关的用例自带隔离**：`conftest.py` 有 autouse fixture 清空
+  `SUNO_FFMPEG` / `SMARTNOTEGEN_FFMPEG` / `SUNO_FFMPEG_DIRS`。
+  否则开发机自己设了这些变量，那些「应当回落到 PATH / 应当抛错」的用例
+  会静默变成假绿或假红——测试结果不该由运行者的机器环境决定。
 
 - **合成样本优先**：`tests/conftest.py` 用纯 Python 拼 ISO BMFF 原子，
   单元测试不需要 ffmpeg，也不需要任何真实音频文件。

@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 from subprocess import CompletedProcess
@@ -92,6 +93,108 @@ def test_find_ffmpeg_error_message_mentions_override():
     with pytest.raises(FFmpegNotFoundError) as ei:
         find_ffmpeg(Path("definitely-not-here"))
     assert "--ffmpeg-path" in ei.value.message
+
+
+# -- find_ffmpeg：环境变量层（第 2 项：硬编码路径不再是唯一出路） ----------
+
+def test_find_ffmpeg_env_var_pointing_at_file(monkeypatch, tmp_path):
+    """SUNO_FFMPEG 直接指向可执行文件时优先于 PATH。"""
+    exe = tmp_path / "ffmpeg.exe"
+    exe.write_bytes(b"stub")
+    monkeypatch.setenv("SUNO_FFMPEG", str(exe))
+    # 故意让 PATH 上有一个「别的」ffmpeg：环境变量必须压过它
+    other = tmp_path / "other" / "ffmpeg"
+    other.parent.mkdir()
+    other.write_bytes(b"stub")
+    monkeypatch.setattr(transcoder.shutil, "which", lambda name: str(other))
+    assert find_ffmpeg() == exe
+
+
+def test_find_ffmpeg_env_var_pointing_at_directory(monkeypatch, tmp_path):
+    """SUNO_FFMPEG 指向目录时，自动在其中找 ffmpeg.exe。"""
+    exe = tmp_path / "ffmpeg.exe"
+    exe.write_bytes(b"stub")
+    monkeypatch.setenv("SUNO_FFMPEG", str(tmp_path))
+    monkeypatch.setattr(transcoder.shutil, "which", lambda name: None)
+    assert find_ffmpeg() == exe
+
+
+def test_find_ffmpeg_alternate_env_var_name(monkeypatch, tmp_path):
+    """SMARTNOTEGEN_FFMPEG 是同一约定的别名，两个都认。"""
+    exe = tmp_path / "ffmpeg"
+    exe.write_bytes(b"stub")
+    monkeypatch.setenv("SMARTNOTEGEN_FFMPEG", str(exe))
+    monkeypatch.setattr(transcoder.shutil, "which", lambda name: None)
+    assert find_ffmpeg() == exe
+
+
+def test_find_ffmpeg_invalid_env_var_falls_through_to_path(monkeypatch, tmp_path):
+    """环境变量写了个不存在的路径 → 继续回落，而不是直接抛错。"""
+    monkeypatch.setenv("SUNO_FFMPEG", str(tmp_path / "nope"))
+    exe = tmp_path / "real" / "ffmpeg"
+    exe.parent.mkdir()
+    exe.write_bytes(b"stub")
+    monkeypatch.setattr(transcoder.shutil, "which", lambda name: str(exe))
+    assert find_ffmpeg() == exe
+
+
+def test_find_ffmpeg_empty_env_var_is_ignored(monkeypatch, tmp_path):
+    """空串等同于未设置（避免 CI 上 `FOO=` 这种传法把它当成合法路径）。"""
+    monkeypatch.setenv("SUNO_FFMPEG", "")
+    exe = tmp_path / "ffmpeg"
+    exe.write_bytes(b"stub")
+    monkeypatch.setattr(transcoder.shutil, "which", lambda name: str(exe))
+    assert find_ffmpeg() == exe
+
+
+def test_find_ffmpeg_env_dirs_searched(monkeypatch, tmp_path):
+    """SUNO_FFMPEG_DIRS 提供追加搜索目录，绕过硬编码的本机路径。"""
+    monkeypatch.setattr(transcoder.shutil, "which", lambda name: None)
+    monkeypatch.setattr(transcoder, "KNOWN_FFMPEG_DIRS", [])
+    portable = tmp_path / "portable" / "bin"
+    portable.mkdir(parents=True)
+    (portable / "ffmpeg").write_bytes(b"stub")
+    monkeypatch.setenv("SUNO_FFMPEG_DIRS", str(portable))
+    assert find_ffmpeg() == portable / "ffmpeg"
+
+
+def test_find_ffmpeg_env_dirs_is_pathsep_separated(monkeypatch, tmp_path):
+    """多目录用 os.pathsep 分隔，空项要跳过（Windows `;a;;b;` 这种写法很常见）。"""
+    monkeypatch.setattr(transcoder.shutil, "which", lambda name: None)
+    monkeypatch.setattr(transcoder, "KNOWN_FFMPEG_DIRS", [])
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    (second / "ffmpeg.exe").write_bytes(b"stub")
+    monkeypatch.setenv(
+        "SUNO_FFMPEG_DIRS",
+        os.pathsep.join(["", str(first), "", str(second), ""]),
+    )
+    assert find_ffmpeg() == second / "ffmpeg.exe"
+
+
+def test_find_ffmpeg_env_dirs_take_precedence_over_hardcoded(monkeypatch, tmp_path):
+    """环境变量目录排在硬编码目录之前，换机时无需改源码。"""
+    monkeypatch.setattr(transcoder.shutil, "which", lambda name: None)
+    hardcoded = tmp_path / "hardcoded"
+    hardcoded.mkdir()
+    (hardcoded / "ffmpeg.exe").write_bytes(b"stub")
+    portable = tmp_path / "portable"
+    portable.mkdir()
+    (portable / "ffmpeg.exe").write_bytes(b"stub")
+    monkeypatch.setattr(transcoder, "KNOWN_FFMPEG_DIRS", [str(hardcoded)])
+    monkeypatch.setenv("SUNO_FFMPEG_DIRS", str(portable))
+    assert find_ffmpeg() == portable / "ffmpeg.exe"
+
+
+def test_find_ffmpeg_error_message_lists_all_routes():
+    """报错要把四条修法都列出来（环境变量 / PATH / 目录列表 / 传参）。"""
+    with pytest.raises(FFmpegNotFoundError) as ei:
+        find_ffmpeg(Path("definitely-not-here"))
+    msg = ei.value.message
+    for hint in ("SUNO_FFMPEG=", "SUNO_FFMPEG_DIRS=", "--ffmpeg-path"):
+        assert hint in msg
 
 
 # -- _find_ffprobe ----------------------------------------------------------

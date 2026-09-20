@@ -8,7 +8,11 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # 钉死版本，不用 ubuntu-latest：滚动标签会随 GitHub 的排期静默跳到 26.04，
+    # 而本 job 依赖 apt 的 fluidsynth/ffmpeg、Git LFS 实体与 SF2 加载行为，
+    # 基础镜像一变就可能重新变红（本项目 CI 刚刚才从长期红灯里修出来）。
+    # 升级时机由我们决定：GitHub 开放 26.04 镜像后，先在 PR 上试跑再改这里。
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version: ["3.12"]
