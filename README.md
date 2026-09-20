@@ -77,6 +77,70 @@ smartnotegen pipeline
 
 ---
 
+## videomaker 子项目（音乐视频生成器）
+
+> 把 SmartNoteGen 产出的音频一键合成**可发布的音乐视频 / 音频可视化**，
+> 适配抖音/YouTube/Instagram/官网四大平台。非 AI，独立包，依赖 SmartNoteGen（单向）。
+
+**输入格式**：WAV / MP3 / FLAC / OGG / **MIDI**（MIDI 自动用 FluidSynth 渲染）
+**能力**：多轨混音（增益/声像/归一化）、分轨可视化、6 种视觉效果、多平台批量
+
+```bash
+pip install -e src/videomaker      # 独立安装，需 ffmpeg
+
+# 抖音竖屏波形
+videomaker render output/.../x.wav --preset douyin --style waveform
+
+# MIDI 直接出视频（自动渲染）
+videomaker render song.mid -p youtube -s circular_spectrum
+
+# 多轨混音 + 分轨可视化（WAV/MP3/MIDI 可混用，同产混音 WAV）
+videomaker render drums.wav "bass.mid:gain=0.8:pan=-0.3" melody.mp3 \
+    -p douyin -s tracks --title "三轨混音"
+
+# 一次产出全部平台 + Logo 水印 + 标题
+videomaker multi x.wav --presets douyin,youtube,instagram,official \
+    --style circular_spectrum --logo logo.png
+
+# 6 种视觉效果：waveform / spectrum / circular_spectrum / reactive / tracks / waveform_scroll
+```
+
+详见 [docs/videomaker.md](docs/videomaker.md)。
+
+---
+
+## Suno-Cat-Catch-Resolve 子项目（Suno 猫抓产物解码）
+
+> 把「猫抓」(CatCatcher) 从 Suno 抓下来的**打不开的文件**转成可播放音频：
+> 自动识别哪份是明文、哪份是加密密文，并把明文解码为 Opus / MP3。
+> 纯本地处理，独立包，依赖 ffmpeg。
+
+**为什么需要它**：猫抓会给出两份**同一首曲子**的文件——
+
+| 抓取方式 | 常见文件名 | 真实身份 | 可解码 |
+|---|---|---|---|
+| 缓存捕获 | `Suno _ AI Music.mp3` | **fragmented MP4**（Opus 48kHz 立体声），扩展名错标 | ✅ 直接解码 |
+| 直接下载页面媒体 | `<uuid>.m4a` | 服务端下发的**加密密文** | ❌ 无密钥不可破 |
+
+`<uuid>.m4a` 经取证（卡方 χ²≈215 完美均匀 + 周期扫描无异于随机基线）判定为
+**AES / ChaCha20 级强加密**，这是数学结论而非工具限制——所以包不会对它假装成功，
+而是明确报错并提示改用缓存捕获的那份（它已是完整明文副本）。
+
+```bash
+pip install -e src/Suno-Cat-Catch-Resolve      # 独立安装，需 ffmpeg
+
+suno-cat-catch-resolve probe  "Suno _ AI Music.mp3"      # 取证判定
+suno-cat-catch-resolve decode "Suno _ AI Music.mp3" -o ./out
+suno-cat-catch-resolve batch  ./downloads -o ./out       # 批量，密文自动跳过
+```
+
+> **命名**：目录 / 发行名 `Suno-Cat-Catch-Resolve`，可导入包名 `suno_cat_catch_resolve`
+> （连字符不是合法 Python 标识符）。`python -m` 与 import 一律用后者。
+
+详见 [src/Suno-Cat-Catch-Resolve/README.md](src/Suno-Cat-Catch-Resolve/README.md)。
+
+---
+
 ## 配置
 
 配置合并优先级（低 → 高）：**内置默认值 < `config/default.toml` < 用户配置文件 < CLI 参数**。

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "videomaker"
+version = "0.1.0"
+description = "SmartNoteGen 音乐视频 / 音频可视化生成器"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "SmartNoteGen Team" }]
+keywords = ["video", "music", "visualization", "ffmpeg", "smartnotegen"]
+dependencies = [
+    "smartnotegen>=0.5.0",
+    "pillow>=10.0.0",
+    "numpy>=1.26.0",
+    "soundfile>=0.12.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0", "pytest-cov>=4.1.0", "ruff>=0.4.0"]
+
+[project.scripts]
+videomaker = "videomaker.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+tmp_path_retention_policy = "all"
+filterwarnings = ["ignore::DeprecationWarning"]

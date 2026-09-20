@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smartnotegen"
-version = "0.5.3"
+version = "0.5.4"
 description = "本地 AI 音乐生成 CLI：程序化 MIDI → 渲染 WAV → Suno 合规导出"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -30,6 +30,10 @@ smartnotegen = "smartnotegen.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+# Suno-Cat-Catch-Resolve 是 src/ 下的独立 editable 兄弟包（与 smartnotegen / videomaker 并列），
+# 由 src/Suno-Cat-Catch-Resolve/pyproject.toml 单独打包。其目录名含连字符、不是合法包名，
+# 主包必须排除，否则打包时会收录成非法包名。
+exclude = ["Suno-Cat-Catch-Resolve*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

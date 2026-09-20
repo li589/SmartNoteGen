@@ -2,6 +2,47 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 风格。
 
+## [Unreleased]
+
+### 新增
+- **`src/Suno-Cat-Catch-Resolve` 子项目 v0.1.0**（`src/` 下独立 editable 兄弟包，与
+  `smartnotegen` / `videomaker` 并列）：Suno「猫抓」产物逆向取证与转码。
+  - `fmp4.py`：ISO BMFF 原子解析、mdat 分片提取（识别 fragmented MP4）
+  - `forensics.py`：熵 / 卡方 χ² / 周期扫描 → 判定明文 or 密文（核心取证层）
+  - `transcoder.py`：ffmpeg 封装（Ogg Opus 无损重封装 / MP3 转码 / 探测）
+  - `cli.py`：`probe` / `decode` / `batch` / `version`（Typer）
+  - `exceptions.py`：错误码 20-24（延续分段：smartnotegen 0-9、videomaker 10-14）
+  - 核心层零第三方依赖，仅 CLI 依赖 typer。
+- **取证结论入库**：猫抓直下的 `<uuid>.m4a` 为服务端下发的加密密文
+  （χ²≈215 完美均匀、无周期性 → AES/ChaCha20 级强加密），无密钥不可破；
+  缓存捕获的 fMP4 是同一首曲子的完整明文副本，直接解码即可。
+
+### 配置
+- 主 `pyproject.toml` 的 `[tool.setuptools.packages.find]` 新增
+  `exclude = ["Suno-Cat-Catch-Resolve*"]`：该目录名含连字符、不是合法包名，
+  必须排除，否则主包打包时会收录成非法包名。
+
+### 文档
+- `README.md` 新增「Suno-Cat-Catch-Resolve 子项目」一节（含两类产物对照表与命名约定）。
+
+## [0.5.4] - 2026-08-15（旋律生成增强：乐句驱动 + 节奏变化 + 音域起伏）
+
+### 增强
+- **`procedural._melody_track` 重写**：从「每拍均匀四分音符」升级为乐句驱动随机游走——
+  以 2 小节为一句的高→低→收轮廓、休止符呼吸、八分跑动、句尾长音收束。
+- **真正读取 `melody_profile`**：`register`（解析 `C3-D5` 音名区间）与 `variation_strength`
+  现在会控制旋律音域与节奏活跃度（此前未生效）。
+- **`_chords_track` sustain 模式增强**：奇数小节块状和弦 + 偶数小节慢速琶音分解，
+  伴奏不再单调。
+
+### 新增
+- 自定义风格 `styles/starsea.toml`（现代抒情 ballads）与 `styles/piano-ballad.toml`（钢琴+弦乐叙事）。
+- 新增 `_parse_pitch_name_to_midi` / `_interval` 工具（音名区间解析 / 音程）。
+
+### 测试
+- 版本号 `0.5.3` → `0.5.4`（`__init__.py` / `pyproject.toml` / `test_cli.py::test_version` 同步）。
+- 全量现有测试通过（含 test_generators 10 例），旋律变更向后兼容（无 profile 时退化旧行为）。
+
 ## [0.5.3] - 2026-08-14（DiffRhythm 仓库路径可命令行配置 + 测试）
 
 ### 增强

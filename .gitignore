@@ -13,6 +13,7 @@ dist/
 htmlcov/
 .coverage
 coverage.xml
+.ruff_cache/
 
 # ===== WorkBuddy 内部（含项目记忆，勿入库）=====
 .workbuddy/
