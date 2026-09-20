@@ -136,3 +136,33 @@ from suno_cat_catch_resolve.transcoder import remux_opus, to_mp3, probe, find_ff
    无损请用 Ogg `.opus`，或转 MP3/AAC。
 2. **别按扩展名判断格式**，一律走 `identify()`：Suno 产物扩展名基本不可信。
 3. `batch` 只处理判定为 `fmp4` 的文件，其余静默跳过并计入报告。
+
+## 六、测试
+
+```bash
+pip install -e "src/Suno-Cat-Catch-Resolve[dev]"   # 需要 pytest / pytest-cov
+cd src/Suno-Cat-Catch-Resolve
+python -m pytest --cov --cov-report=term-missing   # 覆盖率门槛 95%（实测 100%）
+```
+
+138 例，覆盖 `fmp4` / `forensics` / `transcoder` / `cli` 全部模块（语句覆盖率 100%）：
+
+| 文件 | 重点 |
+|---|---|
+| `test_fmp4.py` | 原子解析（32/64 位长度、size=0 到 EOF、非 ASCII 类型中断、截断）、mdat 拼接、`summarize` |
+| `test_forensics.py` | 熵 / 卡方 / 周期扫描的边界与**判据**、五种容器魔数 + MP3 帧同步、明文/密文/弱加密三条判定分支 |
+| `test_transcoder.py` | ffmpeg 定位与回落、`_sanitize`、异常分级、`decode_fmp4` 全分支；**末尾用真实 ffmpeg 跑端到端** |
+| `test_cli.py` | 四个子命令、退出码 2/22/23、batch 汇总报告；**末尾绕开 mock 走真实链路** |
+
+要点：
+
+- **合成样本优先**：`tests/conftest.py` 用纯 Python 拼 ISO BMFF 原子，
+  单元测试不需要 ffmpeg，也不需要任何真实音频文件。
+- **密文样本用固定种子**（`random.Random(1234)`）而非 `os.urandom`，
+  保证 χ² 稳定落在密文判据区间，测试不会偶发翻转。
+- **集成测试缺 ffmpeg 自动 skip**，不会因为环境不全而假红。
+- 合成 fMP4 只有合法容器结构、没有可解码音轨，所以凡是需要 ffmpeg 真正
+  转码的用例都必须用**现场生成的真 fMP4**，不能用合成样本 —— 否则会「通过得莫名其妙」。
+
+CI 中该子包由独立步骤安装并运行（主包 `packages.find` 已排除它，
+其测试不在根 `testpaths` 内，不单独跑就完全不会被收集）。

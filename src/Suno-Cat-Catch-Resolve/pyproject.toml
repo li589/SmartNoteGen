@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0.0", "ruff>=0.4.0"]
+dev = ["pytest>=8.0.0", "pytest-cov>=4.1.0", "ruff>=0.4.0"]
 
 [project.scripts]
 suno-cat-catch-resolve = "suno_cat_catch_resolve.cli:app"
@@ -36,3 +36,15 @@ addopts = "-q"
 # 沙箱下回收站不可用，禁止 pytest 安全删除临时目录
 tmp_path_retention_policy = "all"
 filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.coverage.run]
+source = ["suno_cat_catch_resolve"]
+# __main__.py 只是 `python -m` 的入口壳，无逻辑可测（与主包同策略）
+omit = ["*/__main__.py"]
+
+[tool.coverage.report]
+fail_under = 95
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]

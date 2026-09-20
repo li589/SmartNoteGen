@@ -21,6 +21,11 @@ coverage.xml
 # ===== 生成产物（MIDI/WAV/MP3/metadata）=====
 output/
 
+# ===== Suno-Cat-Catch-Resolve 解码产物 =====
+# README 示例里的默认输出目录是 `-o ./out`，解码出的 Opus/MP3 体积可观
+# （实测单曲约 12MB），绝不能入库。仅作用于该子包，不影响其他 out/ 目录。
+src/Suno-Cat-Catch-Resolve/out/
+
 # ===== QA 测试残留（fluidsynth 改名探针）=====
 module/fluidsynth_qa_hidden/
 

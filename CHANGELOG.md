@@ -72,6 +72,28 @@
   `_apply_detected_to_config` 的 bpm 无引号写入与反斜杠转义。
 - 覆盖率：`commands/helpers.py` 73% → **100%**；整体本地 **87.24% → 88.48%**，
   把与 87% 门槛的余量从 0.01pp 拉到 ~1.2pp（此前任何新增分支都可能误红 CI）。
+- **`src/Suno-Cat-Catch-Resolve/` 新增测试套件（138 例，语句覆盖率 100%）**：
+  该子包此前**零测试**。四个测试文件分别覆盖：
+  - `test_fmp4.py`：原子解析（32/64 位长度、size=0 延伸至 EOF、非 ASCII 类型中断、
+    截断输入）、mdat 分片拼接、`summarize` 统计；
+  - `test_forensics.py`：熵 / 卡方 / 周期扫描的边界与判据常量、五种容器魔数 +
+    MP3 帧同步识别、明文 / 强加密 / 弱加密（重复密钥 XOR）三条判定分支；
+  - `test_transcoder.py`：ffmpeg 定位与三层回落、`_sanitize` 规整、异常分级
+    （20/21/22/23/24）、`decode_fmp4` 全分支；
+  - `test_cli.py`：`probe` / `decode` / `batch` / `version` 四命令，退出码 2/22/23，
+    batch 汇总报告与「非 fMP4 静默跳过」语义。
+  - 设计要点：合成样本用纯 Python 拼 ISO BMFF 原子（单元测试不依赖 ffmpeg）；
+    密文样本用**固定种子**生成以保证 χ² 稳定；**每个文件末尾都保留真实 ffmpeg
+    端到端用例**（缺 ffmpeg 自动 skip），避免「只在 mock 下成立」的假绿。
+  - 新增子包覆盖率配置（`fail_under = 95`、omit `__main__.py`、排除 `__main__` 守卫行）。
+
+### 工程化（CI）
+- **CI 新增 `Test suno-cat-catch-resolve subpackage` 步骤**：独立安装该子包并运行
+  其测试（`--cov-fail-under=95`）。原因是主包 `packages.find` 已排除该目录，
+  其测试不在根 `testpaths`（`tests/`）内——**不单独跑就完全不会被 CI 收集**，
+  这正是它此前长期「无测试、无人发现」的机制性原因。
+  该 job 已装 ffmpeg，因此子包里的真实端到端用例会真正执行而非 skip。
+- 顺带修正：`src/videomaker/pyproject.toml` 版本号 → `0.3.0`（详见下方 docs 条目）。
 
 ### 工程化（仓库卫生）
 - **取消跟踪 `.coverage`**：该文件早已在 `.gitignore` 中，却仍是 git 跟踪对象，

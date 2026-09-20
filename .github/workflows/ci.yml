@@ -70,6 +70,16 @@ jobs:
       - name: Test with pytest
         run: python -m pytest --cov --cov-report=term-missing --cov-fail-under=87
 
+      - name: Test suno-cat-catch-resolve subpackage
+        run: |
+          # 该子包是 src/ 下的独立 editable 兄弟包，主包 packages.find 已排除它，
+          # 因此它的测试不在根 testpaths（tests/）内 —— 必须单独安装、单独运行，
+          # 否则子包测试完全不会被 CI 收集（此前正是这种状态）。
+          # 本 job 已装 ffmpeg，故其中的真实端到端用例会真正执行而非 skip。
+          pip install -e src/Suno-Cat-Catch-Resolve
+          cd src/Suno-Cat-Catch-Resolve
+          python -m pytest --cov --cov-report=term-missing --cov-fail-under=95
+
       - name: Check P0 zero torch import
         run: |
           python -c "
