@@ -109,7 +109,6 @@ def mix_tracks(
         AudioReadError: 任一轨道加载失败。
         ValueError: specs 为空。
     """
-    from videomaker.exceptions import AudioReadError
 
     if not specs:
         raise ValueError("mix_tracks 需要至少一条轨道")

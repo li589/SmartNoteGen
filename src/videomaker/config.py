@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import tomli_w
 
@@ -233,7 +233,6 @@ class Config:
 
     def write_template(self, path: str | Path) -> str:
         """生成带注释的默认配置模板。"""
-        import tomllib
         default = self._to_dict()
         template = tomli_w.dumps(default)
         p = Path(path).expanduser()

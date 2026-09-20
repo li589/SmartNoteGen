@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from videomaker.analysis import AudioAnalysis, analyze, analyze_multitrack
+from videomaker.analysis import analyze, analyze_multitrack
 from videomaker.compositor import Compositor
 from videomaker.config import Config
 from videomaker.output_manager import (
@@ -71,7 +71,6 @@ def video(
         VideoResult 实例。
     """
     # 多轨输入：路径含列表分隔符或传入多文件时走 mix 入口
-    from videomaker.audio_io import is_supported
 
     # 1. 加载配置
     cfg = config or Config.load()
@@ -215,7 +214,7 @@ def video_multitrack(
     Returns:
         VideoResult。
     """
-    from videomaker.mixer import TrackSpec, mix_tracks, parse_track_specs
+    from videomaker.mixer import TrackSpec, mix_tracks
 
     if isinstance(tracks, str):
         tracks = [tracks]

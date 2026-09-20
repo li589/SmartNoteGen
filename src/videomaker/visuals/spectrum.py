@@ -9,7 +9,6 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image, ImageDraw
 
-from videomaker.config import Config
 from videomaker.visuals.base import VisualContext, Visualizer
 
 

@@ -13,7 +13,6 @@ from typing import Optional
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from videomaker.config import Config
 from videomaker.visuals.base import VisualContext, Visualizer
 
 
@@ -28,9 +27,9 @@ def _track_color(i: int, n: int, base: tuple) -> tuple:
     """轨道色：基于主色做色相偏移，均匀区分。"""
     if n <= 1:
         return base
-    h, l, s = colorsys.rgb_to_hls(base[0] / 255, base[1] / 255, base[2] / 255)
+    h, light, s = colorsys.rgb_to_hls(base[0] / 255, base[1] / 255, base[2] / 255)
     h = (h + i / n) % 1.0
-    r, g, b = colorsys.hls_to_rgb(h, l, s)
+    r, g, b = colorsys.hls_to_rgb(h, light, s)
     return (int(r * 255), int(g * 255), int(b * 255))
 
 

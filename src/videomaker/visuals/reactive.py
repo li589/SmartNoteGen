@@ -9,7 +9,6 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image, ImageDraw
 
-from videomaker.config import Config
 from videomaker.visuals.base import VisualContext, Visualizer
 
 
@@ -66,7 +65,6 @@ class ReactiveVisualizer(Visualizer):
             age = t - recent_onset
             progress = age / self.DECAY_S  # 0 → 1
             ring_r = int(radius + progress * min_dim * 0.5)
-            ring_alpha = int(255 * (1.0 - progress))
             ring_c = (min(255, base_color[0] + 80), base_color[1], base_color[2])
             # PIL 无 alpha 直线，用宽度渐减模拟衰减
             width = max(1, int(6 * (1.0 - progress)))

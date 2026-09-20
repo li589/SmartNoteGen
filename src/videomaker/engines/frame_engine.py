@@ -22,7 +22,7 @@ from typing import Optional
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from videomaker.analysis import AudioAnalysis, analyze
+from videomaker.analysis import analyze
 from videomaker.config import Config
 from videomaker.exceptions import FFmpegNotFoundError, RenderError
 from videomaker.visuals.base import VisualContext, Visualizer

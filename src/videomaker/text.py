@@ -11,7 +11,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -46,7 +45,7 @@ def build_drawtext(params: TextParams) -> str:
     opts.append(f"x={params.x}")
     opts.append(f"y={params.y}")
     if params.box:
-        opts.append(f"box=1")
+        opts.append("box=1")
         opts.append(f"boxcolor={params.box_color}")
         opts.append(f"boxborderw={params.box_border_width}")
     return "drawtext=" + ",".join(opts)
