@@ -6,6 +6,9 @@
 > 技术栈：Python 3.12+ · Typer · music21 · pretty_midi · FluidSynth · numpy/soundfile
 > P1 可选：MusicGen / DiffRhythm（AI 扩编曲与歌曲草稿，默认不安装）
 
+> 本仓库含三个独立可安装的组件（`smartnotegen` / `videomaker` / `Suno-Cat-Catch-Resolve`），
+> **完整功能清单（命令树、模块能力、错误码总表）见 [docs/features.md](docs/features.md)**。
+
 ---
 
 ## 安装
