@@ -65,11 +65,31 @@
 ### 测试
 - 新增 13 例：`platform_paths` 回落判定（Windows/POSIX/未安装）、env 与 render 两层
   的回落与分级报错分支（ModuleError(7) / RenderError(4)）、PATH 查找路径。
-- 本地覆盖率 86.71% → **87.22%**（达标）；`render/fluidsynth.py` 80% → 95%。
+- **新增 `tests/test_commands_helpers.py`（28 例）**：补齐 `commands/helpers.py` 此前
+  只被 CLI 端到端间接覆盖的分支——`_guard` 两条异常路径 × debug 开关、
+  `_get_duration` 异常回落、`_write_single_metadata` 开关短路、`_diff_metadata`
+  参数提取与畸形 JSON、`_prompt` / `_config_prompt` 全分支、
+  `_apply_detected_to_config` 的 bpm 无引号写入与反斜杠转义。
+- 覆盖率：`commands/helpers.py` 73% → **100%**；整体本地 **87.24% → 88.48%**，
+  把与 87% 门槛的余量从 0.01pp 拉到 ~1.2pp（此前任何新增分支都可能误红 CI）。
+
+### 工程化（仓库卫生）
+- **取消跟踪 `.coverage`**：该文件早已在 `.gitignore` 中，却仍是 git 跟踪对象，
+  导致每跑一次 pytest 就出现 ` M .coverage` 噪音、掩盖真实改动。已 `git rm --cached`
+  （磁盘文件保留）。
+- **删除死代码 `procedural._interval()`**：全仓库零引用（仅定义无调用），
+  删除后语句总数 3510 → 3508。
+- **GitHub Actions 升到 v7**：`actions/checkout` v4 → v7、`actions/setup-python` v5 → v7，
+  消除 node20 运行时的弃用告警。
+- **更正 `.gitignore` 中 `/*.mid` 的陈旧注释**：其注释声称"test_generators 写入 CWD"，
+  但复核确认 `test_generators.py` 三例均已显式使用 `tmp_path`，全量跑测后根目录
+  无任何 `.mid` 残留——规则保留作防御网，注释改为反映真实情况（触发条件已不复现）。
 
 ### 文档
 - `README.md` 新增「Suno-Cat-Catch-Resolve 子项目」一节（含两类产物对照表与命名约定）。
 - videomaker 交付报告归档至 `reports/`（v0.1 → v0.3.0 共 4 份）。
+- **新增「子项目变更历史：videomaker」附录**（本文件末尾）：把此前只散落在 `reports/`
+  的 v0.1.0 → v0.3.0 版本线正式并入主 CHANGELOG，含各版能力、已知限制与测试规模。
 - `reports/ci-remediation-plan.md`：CI 修复路线与决策记录。
 
 ## [0.5.4] - 2026-09-20（旋律生成增强：动机驱动乐句 + 伴奏织体 + 读回拍速修复）
@@ -218,3 +238,69 @@
 
 - 本机已配置 `module/fluidsynth` 与双 SoundFont，`render` / `pipeline` 开箱即用；删除 `module/` 时报错误码 7 而非静默 mock。
 - 版本号保持 0.1.0（`--version` 断言兼容，P2-3 版本规范化延后至测试断言许可后执行）。
+
+---
+
+## 子项目变更历史：videomaker
+
+> `src/videomaker/` 是主包的独立 editable 兄弟包，**版本线独立于 `smartnotegen`**
+> （错误码分段 10-14，主包占用 0-9）。
+> 下列版本于 2026-08-21 → 2026-08-29 陆续交付，但**直到 2026-09-20 才随源码一并纳入版本控制**
+> （此前只存在于工作区，见 `[Unreleased]` → 工程化）。
+> 各版本完整交付报告见 `reports/videomaker-*.md`。
+
+### [0.3.0] - 2026-08-29（多格式输入 + 多轨混音 + 分轨可视化）
+
+- **多格式输入**：WAV/FLAC/OGG 用 soundfile 直读；**MP3 由 soundfile 0.14 原生支持**
+  （无需外部转换）；**MIDI 复用主包 `FluidSynthRenderer`** 渲染为临时 WAV
+  （`module/fluidsynth/bin` + GeneralUser-GS.sf2 真实引擎）。
+- **多轨混音**：`render a.wav "bass.mid:gain=0.8:pan=-0.3" melody.mp3` 多文件自动进多轨模式；
+  重采样统一 44.1k → 长度对齐 → 轨道增益 + **等功率声像定律** → **峰值归一化 -1 dBFS**；
+  双产物 `xxx.mp4` + `xxx.mix.wav`（混音可直接作纯音频发布）。
+- **分轨可视化**（`--style tracks`）：垂直排列每轨频谱，HSL 色环区分轨道，**逐轨独立归一化**
+  （弱轨也清晰可见），顶部显示轨名。
+- **滚动波形**（`--style waveform_scroll`）：播放头居中 + 预计算波形查表滑动窗口
+  （补上 v0.2 推迟的 W4）。
+- **测试**：`test_videomaker.py` 30 例 + `test_videomaker_v03.py` 26 例 = **56 例全通过**。
+- **已知限制**：Windows 绝对路径含盘符（`C:\...`）不支持 `:gain=` 冒号参数语法
+  （冒号被解析切分），需用相对路径或程序化 `TrackSpec`；`tracks` 样式建议 ≤6 轨。
+
+### [0.2.1] - 2026-08-23（rawvideo 提速 + Logo 水印 + multi 批量）
+
+- **rawvideo 管道**（本版最关键改造）：FrameEngine 由「PIL 逐帧落盘 PNG → ffmpeg 读文件序列」
+  改为 **PIL 帧 numpy→bytes 直写 ffmpeg stdin**，零中间文件——
+  3s 音频 21s → **0.8s（提速 26 倍）**。
+  配套修复：ffmpeg 进度日志量大，**stderr 不排空会填满缓冲导致 `proc.stdin.write()` 阻塞死锁**，
+  须加 daemon 线程持续 drain。
+- **Logo/水印**（`--logo` / `--logo-pos`）：ffmpeg 路径走临时 PNG overlay 双输入，
+  PIL 路径走 `alpha_composite` 四角合成；支持四角定位 + 透明度 + 尺寸比例。
+- **multi 批量命令**：一个音频一次产出多平台视频，复用同一次音频分析（发布闭环）。
+- **规避的 3 个新版 ffmpeg 坑**：① `-loop 1` + `-shortest` 死锁（改单帧图片输入 + 链尾
+  `format=yuv420p`）；② overlay 输入顺序必须为 `[底图][叠加层]`，反了会把 logo 当底图；
+  ③ x264 拒绝奇数尺寸（yuv420p 要求，logo 缩放强制 `//2*2`）。
+- **测试**：`test_videomaker.py` 33 例全通过（25 → 33，新增 logo 相关）。
+
+### [0.2.0] - 2026-08-23（创意层激活）
+
+- 起因：v0.1.0 审计发现 **PIL 创意层是 100% 死代码**——用户请求
+  `circular_spectrum` / `reactive` 时实际静默回退到 ffmpeg 普通波形。
+- **双引擎路由**：`waveform` / `spectrum` → ffmpeg 原生（showwaves / showspectrum）；
+  `circular_spectrum` / `reactive` → **PIL FrameEngine**（前者 ffmpeg 无对应滤镜，
+  后者需 RMS/onset 驱动）。
+- **预计算架构**（性能核心）：`analyze()` 一次产出频谱矩阵 + RMS 包络 + 波形 + onset，
+  注入全帧共享的 `VisualContext` 查表渲染（原先每帧重算全量 STFT）。
+  配套 PIL 半分辨率渲染（`render_scale=0.5`）+ ffmpeg lanczos 上采样。
+- 打通**背景叠加链路**（统一产出 PIL Image 走 overlay 双输入）与**文字叠加/标题卡**
+  （微软雅黑；Windows 盘符冒号需转义为 `C\:/Windows/Fonts/msyh.ttc`）。
+- **测试**：`test_videomaker.py` 25 例通过；全量回归 280 测试无失败。
+
+### [0.1.0] - 2026-08-21（包骨架）
+
+- 建立独立包骨架与 Typer CLI（`render` / `presets` / `config` / `version`）。
+- **ffmpeg 渲染引擎**（showwaves / showspectrum）+ PIL 创意层基础实现。
+- **4 套平台预设**：douyin(9:16) / youtube(16:9) / instagram(1:1) / official(4:5)。
+- **4 种视觉效果**：waveform / spectrum / circular_spectrum / reactive。
+- 输出管理（路径规划 + metadata.json）与**错误码体系 10-14**。
+- **新版 ffmpeg 滤镜语法适配**：`mode=single` 需移除、`color=` 参数不支持、
+  必须显式绑定音频输入 `[0:a]showwaves=...[v]`。
+- **测试**：4 风格 × 4 平台端到端全部通过。

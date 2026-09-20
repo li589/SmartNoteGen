@@ -4,7 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "videomaker"
-version = "0.1.0"
+# 与 src/videomaker/__init__.py 的 __version__ 必须一致（同一易漂移点，
+# 主包曾因此漂移两次；tests/test_version_alignment.py 有守卫测试）。
+version = "0.3.0"
 description = "SmartNoteGen 音乐视频 / 音频可视化生成器"
 readme = "README.md"
 requires-python = ">=3.12"
