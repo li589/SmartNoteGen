@@ -27,6 +27,7 @@ from typing import Callable, List, Optional, Union
 from smartnotegen.config import Config
 from smartnotegen.exceptions import ConfigError, ModuleError, RenderError
 from smartnotegen.logging_setup import get_logger
+from smartnotegen.platform_paths import system_fluidsynth
 
 logger = get_logger("env")
 
@@ -150,9 +151,18 @@ class PathResolver:
         resolved = self._resolve_config_path(value)
         is_module = self._is_module_path(value, resolved)
         if resolved.is_file():
-            return resolved
+            if os.access(resolved, os.X_OK):
+                return resolved
+            # 存在但不可执行：类 Unix 平台上的典型情形是「捆绑的是 Windows 版
+            # fluidsynth.exe」，此时回落到系统安装的 fluidsynth（Windows 上恒无回落）。
+            alt = system_fluidsynth()
+            if alt is not None:
+                logger.info(
+                    "fluidsynth 在当前平台不可执行（Windows 二进制），已回落到系统版本: %s", alt
+                )
+                return alt
         # 仅裸名（无路径分隔）做 PATH 查找，避免 module/xxx 相对路径被 CWD 命中
-        if "/" not in value and "\\" not in value:
+        elif "/" not in value and "\\" not in value:
             found = shutil.which(value)
             if found:
                 return Path(found)
@@ -216,6 +226,14 @@ class PathResolver:
         is_module = self._is_module_path(value, resolved)
         if resolved.is_file():
             if not os.access(resolved, os.X_OK):
+                # 类 Unix 平台回落：捆绑的是 Windows 版 fluidsynth.exe（存在但不可执行）
+                alt = system_fluidsynth()
+                if alt is not None:
+                    return EnvProbe(
+                        "fluidsynth", ProbeStatus.OK, alt,
+                        "module 内为 Windows 二进制、在当前平台不可执行，"
+                        f"已回落到系统 fluidsynth: {alt}", is_module,
+                    )
                 return EnvProbe(
                     "fluidsynth", ProbeStatus.BROKEN, resolved,
                     f"存在但不可执行: {resolved}（请检查文件权限/依赖 DLL）", is_module,

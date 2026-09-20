@@ -1,6 +1,10 @@
 """M-1 环境接入单测：ProjectRootResolver + PathResolver 三分支（OK/MISSING/BROKEN）。
 
 路径探测通过 runner 注入，不依赖真实二进制（M-1 验收 6）。
+
+跨平台注意：用作「可执行文件」的占位文件（`b"MZ"`）必须补可执行位
+（`chmod(0o755)`）——POSIX 的 `os.access(X_OK)` 要求真实执行位，Windows 上则
+近似等价于存在性检查。不补执行位会让本文件在 Linux/CI 上大面积误判为 BROKEN。
 """
 
 from __future__ import annotations
@@ -10,6 +14,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from smartnotegen import platform_paths
 from smartnotegen.config import Config
 from smartnotegen.env import PathResolver, ProbeStatus, ProjectRootResolver
 from smartnotegen.exceptions import ConfigError, ModuleError, RenderError
@@ -82,6 +87,7 @@ def test_probe_all_ok(tmp_path):
     """fluidsynth + soundfont 均 OK，且 SF2 可被加载 -> ensure_ready 不抛错。"""
     fs_bin = tmp_path / "fluidsynth.exe"
     fs_bin.write_bytes(b"MZ")
+    fs_bin.chmod(0o755)  # POSIX 需真实执行位，否则探测判 BROKEN（Windows 上为 no-op）
     sf = tmp_path / "good.sf2"
     sf.write_bytes(b"RIFFgood")
     cfg = _make_cfg(tmp_path, fluidsynth=str(fs_bin), soundfont=str(sf),
@@ -125,6 +131,7 @@ def test_module_soundfont_missing_raises_7(tmp_path):
     """module/ 下主+备选音色库均缺失 -> resolve_soundfont 抛 ModuleError(7)。"""
     fs_bin = tmp_path / "fluidsynth.exe"
     fs_bin.write_bytes(b"MZ")
+    fs_bin.chmod(0o755)  # POSIX 需真实执行位，否则探测判 BROKEN（Windows 上为 no-op）
     cfg = Config().merge_cli(
         fluidsynth=str(fs_bin),
         soundfont="module/x/a.sf2",
@@ -140,6 +147,7 @@ def test_soundfont_broken_load_raises_7(tmp_path):
     """SF2 存在但 fluidsynth 无法加载（BROKEN）-> ensure_ready 抛 ModuleError(7)。"""
     fs_bin = tmp_path / "fluidsynth.exe"
     fs_bin.write_bytes(b"MZ")
+    fs_bin.chmod(0o755)  # POSIX 需真实执行位，否则探测判 BROKEN（Windows 上为 no-op）
     sf = tmp_path / "broken.sf2"
     sf.write_bytes(b"RIFFgarbage")
     cfg = Config().merge_cli(
@@ -167,6 +175,7 @@ def test_soundfont_backup_fallback(tmp_path):
     """主音色库缺失、备选存在 -> resolve_soundfont 返回备选；ensure_ready 不抛错。"""
     fs_bin = tmp_path / "fluidsynth.exe"
     fs_bin.write_bytes(b"MZ")
+    fs_bin.chmod(0o755)  # POSIX 需真实执行位，否则探测判 BROKEN（Windows 上为 no-op）
     backup = tmp_path / "module" / "x" / "backup.sf2"
     backup.parent.mkdir(parents=True)
     backup.write_bytes(b"RIFFbackup")
@@ -207,6 +216,7 @@ def test_probe_sf2_loadable_true(tmp_path):
     """SF2 可加载：退出码 0 且无错误文本 -> True。"""
     fs_bin = tmp_path / "fs.exe"
     fs_bin.write_bytes(b"MZ")
+    fs_bin.chmod(0o755)  # POSIX 需真实执行位，否则探测判 BROKEN（Windows 上为 no-op）
     sf = tmp_path / "ok.sf2"
     sf.write_bytes(b"RIFFok")
     cfg = _make_cfg(tmp_path, fluidsynth=str(fs_bin), soundfont=str(sf))
@@ -218,6 +228,7 @@ def test_probe_sf2_loadable_false(tmp_path):
     """SF2 无法识别（含错误文本）-> False。"""
     fs_bin = tmp_path / "fs.exe"
     fs_bin.write_bytes(b"MZ")
+    fs_bin.chmod(0o755)  # POSIX 需真实执行位，否则探测判 BROKEN（Windows 上为 no-op）
     sf = tmp_path / "bad.sf2"
     sf.write_bytes(b"garbage")
     cfg = _make_cfg(tmp_path, fluidsynth=str(fs_bin), soundfont=str(sf))
@@ -233,8 +244,122 @@ def test_probe_sf2_loadable_runner_exception(tmp_path):
 
     fs_bin = tmp_path / "fs.exe"
     fs_bin.write_bytes(b"MZ")
+    fs_bin.chmod(0o755)  # POSIX 需真实执行位，否则探测判 BROKEN（Windows 上为 no-op）
     sf = tmp_path / "x.sf2"
     sf.write_bytes(b"RIFFx")
     cfg = _make_cfg(tmp_path, fluidsynth=str(fs_bin), soundfont=str(sf))
     resolver = PathResolver(cfg, project_root=tmp_path, runner=_boom)
     assert resolver._probe_sf2_loadable(fs_bin, sf) is False
+
+
+# ---------------------------------------------------------------------------
+# 跨平台回落（platform_paths）：捆绑的 Windows 二进制在 POSIX 上改用系统 fluidsynth
+# ---------------------------------------------------------------------------
+
+def test_system_fluidsynth_none_on_windows(monkeypatch):
+    """Windows 上恒返回 None（永不回落），保持既有行为逐字不变。"""
+    monkeypatch.setattr(platform_paths, "IS_WINDOWS", True)
+    monkeypatch.setattr(platform_paths.shutil, "which", lambda name: "/usr/bin/fluidsynth")
+    assert platform_paths.system_fluidsynth() is None
+
+
+def test_system_fluidsynth_uses_which_on_posix(monkeypatch):
+    """POSIX 上返回 PATH 命中的 fluidsynth。"""
+    monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
+    monkeypatch.setattr(platform_paths.shutil, "which", lambda name: "/usr/bin/fluidsynth")
+    assert platform_paths.system_fluidsynth() == Path("/usr/bin/fluidsynth")
+
+
+def test_system_fluidsynth_none_when_absent_on_posix(monkeypatch):
+    """POSIX 上系统未安装 fluidsynth -> None（调用方维持原有不可用判定）。"""
+    monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
+    monkeypatch.setattr(platform_paths.shutil, "which", lambda name: None)
+    assert platform_paths.system_fluidsynth() is None
+
+
+def test_probe_falls_back_to_system_on_posix(tmp_path, monkeypatch):
+    """捆绑二进制存在但不可执行 + 系统有 fluidsynth -> 探测 OK 且指向系统版本。
+
+    本地 Windows 上 os.access(X_OK) 对任意文件返回 True，故强制其为 False
+    以复现 POSIX 语义；CI（Linux）上该 patch 只是让判定确定化。
+    """
+    fs_bin = tmp_path / "fluidsynth.exe"
+    fs_bin.write_bytes(b"MZ")  # 故意不 chmod：模拟 PE 文件无执行位
+    sf = tmp_path / "good.sf2"
+    sf.write_bytes(b"RIFFgood")
+    cfg = _make_cfg(tmp_path, fluidsynth=str(fs_bin), soundfont=str(sf),
+                    soundfont_backup=str(tmp_path / "b.sf2"))
+    monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
+    monkeypatch.setattr(platform_paths.shutil, "which", lambda name: "/usr/bin/fluidsynth")
+    monkeypatch.setattr("smartnotegen.env.os.access", lambda p, mode: False)
+
+    resolver = PathResolver(cfg, project_root=tmp_path, runner=_OK_RUNNER)
+    fs_probe = next(p for p in resolver.probe_all() if p.component == "fluidsynth")
+    assert fs_probe.status == ProbeStatus.OK
+    assert fs_probe.path == Path("/usr/bin/fluidsynth")
+    resolver.ensure_ready()  # 回落可用 -> 不抛错
+
+
+def test_probe_keeps_broken_when_no_system_fallback(tmp_path, monkeypatch):
+    """不可执行且系统无 fluidsynth -> 维持 BROKEN（不静默放过坏环境）。"""
+    fs_bin = tmp_path / "fluidsynth.exe"
+    fs_bin.write_bytes(b"MZ")
+    sf = tmp_path / "good.sf2"
+    sf.write_bytes(b"RIFFgood")
+    cfg = _make_cfg(tmp_path, fluidsynth=str(fs_bin), soundfont=str(sf),
+                    soundfont_backup=str(tmp_path / "b.sf2"))
+    monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
+    monkeypatch.setattr(platform_paths.shutil, "which", lambda name: None)
+    monkeypatch.setattr("smartnotegen.env.os.access", lambda p, mode: False)
+
+    resolver = PathResolver(cfg, project_root=tmp_path, runner=_OK_RUNNER)
+    fs_probe = next(p for p in resolver.probe_all() if p.component == "fluidsynth")
+    assert fs_probe.status == ProbeStatus.BROKEN
+    with pytest.raises(RenderError) as exc:  # 非 module 的 BROKEN -> RenderError(4)
+        resolver.ensure_ready()
+    assert exc.value.code == 4
+
+
+def test_resolve_fluidsynth_falls_back_on_posix(tmp_path, monkeypatch):
+    """resolve_fluidsynth 在不可执行时同样回落到系统版本。"""
+    fs_bin = tmp_path / "fluidsynth.exe"
+    fs_bin.write_bytes(b"MZ")
+    cfg = _make_cfg(tmp_path, fluidsynth=str(fs_bin))
+    monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
+    monkeypatch.setattr(platform_paths.shutil, "which", lambda name: "/usr/bin/fluidsynth")
+    monkeypatch.setattr("smartnotegen.env.os.access", lambda p, mode: False)
+
+    resolver = PathResolver(cfg, project_root=tmp_path)
+    assert resolver.resolve_fluidsynth() == Path("/usr/bin/fluidsynth")
+
+
+def test_resolve_fluidsynth_module_no_fallback_raises_7(tmp_path, monkeypatch):
+    """module 路径不可执行且系统无回落 -> resolve_fluidsynth 抛 ModuleError(7)。"""
+    module_bin = tmp_path / "module" / "fluidsynth" / "bin"
+    module_bin.mkdir(parents=True)
+    fs_bin = module_bin / "fluidsynth.exe"
+    fs_bin.write_bytes(b"MZ")
+    cfg = Config().merge_cli(fluidsynth="module/fluidsynth/bin/fluidsynth.exe")
+    monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
+    monkeypatch.setattr(platform_paths.shutil, "which", lambda name: None)
+    monkeypatch.setattr("smartnotegen.env.os.access", lambda p, mode: False)
+
+    resolver = PathResolver(cfg, project_root=tmp_path)
+    with pytest.raises(ModuleError) as exc:
+        resolver.resolve_fluidsynth()
+    assert exc.value.code == 7
+
+
+def test_resolve_fluidsynth_non_module_no_fallback_raises_4(tmp_path, monkeypatch):
+    """非 module 路径不可执行且系统无回落 -> RenderError(4)。"""
+    fs_bin = tmp_path / "fluidsynth.exe"
+    fs_bin.write_bytes(b"MZ")
+    cfg = _make_cfg(tmp_path, fluidsynth=str(fs_bin))
+    monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
+    monkeypatch.setattr(platform_paths.shutil, "which", lambda name: None)
+    monkeypatch.setattr("smartnotegen.env.os.access", lambda p, mode: False)
+
+    resolver = PathResolver(cfg, project_root=tmp_path)
+    with pytest.raises(RenderError) as exc:
+        resolver.resolve_fluidsynth()
+    assert exc.value.code == 4

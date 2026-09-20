@@ -13,6 +13,7 @@ M-1 扩展：
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
@@ -21,6 +22,7 @@ from typing import Optional
 
 from smartnotegen.exceptions import ConfigError, InputFileError, ModuleError, RenderError
 from smartnotegen.logging_setup import get_logger
+from smartnotegen.platform_paths import system_fluidsynth
 
 logger = get_logger("render.fluidsynth")
 
@@ -204,8 +206,17 @@ class FluidSynthRenderer(Renderer):
         if self.fluidsynth_path:
             p = Path(self.fluidsynth_path).expanduser()
             if p.is_absolute():
-                if p.is_file():
+                if p.is_file() and os.access(p, os.X_OK):
                     return str(p)
+                if p.is_file():
+                    # 存在但不可执行：类 Unix 平台回落系统 fluidsynth（Windows 恒无回落）
+                    alt = system_fluidsynth()
+                    if alt is not None:
+                        logger.info(
+                            "fluidsynth 在当前平台不可执行（Windows 二进制），"
+                            "已回落到系统版本: %s", alt
+                        )
+                        return str(alt)
                 if self._looks_module(p):
                     raise ModuleError(
                         "渲染环境不完整: fluidsynth 缺失\n"
@@ -221,9 +232,18 @@ class FluidSynthRenderer(Renderer):
                 )
             # 相对路径：先按项目根解析；仅裸名（无路径分隔）才做 PATH 查找
             resolved, is_module = self._resolve_path(self.fluidsynth_path)
-            if resolved.is_file():
+            if resolved.is_file() and os.access(resolved, os.X_OK):
                 return str(resolved)
-            if "/" not in self.fluidsynth_path and "\\" not in self.fluidsynth_path:
+            if resolved.is_file():
+                # 存在但不可执行：类 Unix 平台回落系统 fluidsynth（Windows 恒无回落）
+                alt = system_fluidsynth()
+                if alt is not None:
+                    logger.info(
+                        "fluidsynth 在当前平台不可执行（Windows 二进制），"
+                        "已回落到系统版本: %s", alt
+                    )
+                    return str(alt)
+            elif "/" not in self.fluidsynth_path and "\\" not in self.fluidsynth_path:
                 found = shutil.which(self.fluidsynth_path)
                 if found:
                     return found

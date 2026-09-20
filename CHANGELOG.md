@@ -30,9 +30,32 @@
   歧义变量名 `l`（E741）、死变量 `ring_alpha`（F841）。主包 `packages.find` 会收录
   videomaker，而 CI 的 `ruff check src/` 此前从未扫过它——推送到 main 会直接红灯，故一并修正。
 
+### 修复
+- **CI 适配真实引擎依赖（FluidSynth / SoundFont / ffmpeg）**：CI 此前长期红灯
+  （`gh run list` 显示最近 4 次运行全部 failure，从未绿过）。根因是 `ubuntu-latest`
+  拿不到 Windows 版 `fluidsynth.exe`——捆绑二进制在类 Unix 上「存在但不可执行」，
+  渲染环境探测据此判 BROKEN（历史遗留 4 例失败 + 覆盖率 86.30% 不达标）。
+  - 新增 `platform_paths.py`：**平台感知回落**。Windows 上恒不触发
+    （`IS_WINDOWS` 为真时 `system_fluidsynth()` 返回 None），既有行为逐字不变。
+  - `env.PathResolver` 与 `render.FluidSynthRenderer` 两处 fluidsynth 解析，在
+    「文件存在但不可执行」时回落到系统 fluidsynth；无回落可用则维持原有分级报错
+    （module 路径 → ModuleError(7)，非 module → RenderError(4)），不静默放过坏环境。
+  - `ci.yml` 增加 `apt-get install fluidsynth ffmpeg`，并新增「渲染环境自检」步骤
+    （校验 fluidsynth/ffmpeg 可用 + SoundFont 存在），让环境问题早暴露。
+    SoundFont 与 Windows 二进制本就随版本控制入库（293M），CI 无需额外下载。
+- **跨平台测试修正**：占位二进制（`b"MZ"`）统一补 `chmod(0o755)`。POSIX 的
+  `os.access(X_OK)` 要求真实执行位（Windows 上等价于存在性检查），此前
+  `test_env.py` 3 例在 CI 上因此把「存在的假二进制」误判为 BROKEN。
+
+### 测试
+- 新增 13 例：`platform_paths` 回落判定（Windows/POSIX/未安装）、env 与 render 两层
+  的回落与分级报错分支（ModuleError(7) / RenderError(4)）、PATH 查找路径。
+- 本地覆盖率 86.71% → **87.22%**（达标）；`render/fluidsynth.py` 80% → 95%。
+
 ### 文档
 - `README.md` 新增「Suno-Cat-Catch-Resolve 子项目」一节（含两类产物对照表与命名约定）。
 - videomaker 交付报告归档至 `reports/`（v0.1 → v0.3.0 共 4 份）。
+- `reports/ci-remediation-plan.md`：CI 修复路线与决策记录。
 
 ## [0.5.4] - 2026-09-20（旋律生成增强：动机驱动乐句 + 伴奏织体 + 读回拍速修复）
 
