@@ -1,0 +1,13 @@
+# 自定义风格：piano-cheerful（欢快钢琴 solo）
+# 明亮、跳跃、流动感 —— 纯钢琴主旋律，八分音符律动 + 宽幅起伏
+name = "piano-cheerful"
+bpm_range = [110, 130]
+# 轨道 -> GM Program：melody=0 原声大钢琴主奏（solo）
+# chords=0 钢琴也保留（轻铺底），bass/drums 关闭（纯 solo）
+instruments = { chords = 0, melody = 0, bass = 33, drums = 0 }
+rhythm_pattern = "pop"
+# 主旋律：明亮易唱的音域（C4-C6），强 variation 制造八分跑动与跳跃感
+melody_profile = { register = "C4-C6", interval_bias = "step", variation_strength = 0.7 }
+# 和弦偏好：明亮 uplifting 走向
+chord_preference = ["C-G-Am-F", "C-G-F-G", "Am-F-Dm-G", "F-G-C-C"]
+dsp_defaults = { fade_in_ms = 80, fade_out_ms = 300, normalize_dbfs = -1.0 }

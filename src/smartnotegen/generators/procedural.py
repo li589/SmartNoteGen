@@ -44,6 +44,7 @@ STYLE_PRESETS: Dict[str, _StylePreset] = {
     "rock": _StylePreset(25, 80, 34, "eighth"),       # 尼龙吉他 / 方波主音 / 指拨贝斯
     "electronic": _StylePreset(88, 81, 38, "eighth"), # 合成垫 / 合成主音 / 合成贝斯
     "classical": _StylePreset(46, 73, 43, "sustain"), # 竖琴 / 长笛 / 大提琴
+    "piano-cheerful": _StylePreset(0, 0, 33, "block"), # 钢琴主奏 / 整小节块状和弦(一起按下)伴奏
 }
 
 _DEFAULT_STYLE = "pop"
@@ -134,7 +135,10 @@ class ProceduralGenerator(Generator):
         preset: _StylePreset,
         beats_per_bar: float,
     ) -> List[Note]:
-        """和弦轨：按小节铺开块状和弦/琶音。"""
+        """和弦轨：按小节铺开块状和弦/琶音。
+
+        在 sustain 模式下，按奇数小节块状长音、偶数小节分解琶音——让和弦伴奏有变化，不单调。
+        """
         notes: List[Note] = []
         for bar in range(request.bars):
             chord = progression.get_chord(bar)
@@ -166,16 +170,36 @@ class ProceduralGenerator(Generator):
                                 velocity=58 + random.randint(-4, 6),
                             )
                         )
-            else:  # sustain：整小节块状和弦
-                for tone in tones:
-                    notes.append(
-                        Note(
-                            pitch=tone,
-                            start=bar_start,
-                            duration=beats_per_bar - 0.05,
-                            velocity=58 + random.randint(-4, 6),
+            elif preset.density == "block":
+                # 块状和弦：整小节所有和弦音同时按下（一起按下去），sustain 整小节
+                notes.extend(_chords_track_block(tones, bar_start, beats_per_bar))
+            else:  # sustain：交替块状与分解，制造伴奏呼吸感
+                # 奇数小节（1/3/5/7）：块状和弦 sustain
+                if bar % 2 == 0:
+                    for tone in tones:
+                        notes.append(
+                            Note(
+                                pitch=tone,
+                                start=bar_start,
+                                duration=beats_per_bar - 0.05,
+                                velocity=58 + random.randint(-4, 6),
+                            )
                         )
-                    )
+                else:
+                    # 偶数小节（2/4/6/8）：慢速琶音分解（每拍一个和弦音上行）
+                    step = beats_per_bar / max(4, len(tones))
+                    for i, tone in enumerate(tones):
+                        t = bar_start + i * step
+                        if t >= bar_start + beats_per_bar - 0.01:
+                            break
+                        notes.append(
+                            Note(
+                                pitch=tone,
+                                start=t,
+                                duration=step * 0.9,
+                                velocity=58 + random.randint(-4, 6),
+                            )
+                        )
         return notes
 
     def _melody_track(
@@ -185,35 +209,117 @@ class ProceduralGenerator(Generator):
         preset: _StylePreset,
         beats_per_bar: float,
     ) -> List[Note]:
-        """旋律轨：音阶内随机游走，强拍/句尾对齐和弦音。"""
+        """旋律轨：动机驱动的欢快主旋律（强拍和弦音 + 弱拍级进 + 乐句动机）。
+
+        解决「听不出旋律 / 单一音」问题：
+        - 强拍（每小节第 1、3 拍）落在和弦音 -> 和声清晰、有调性；
+        - 弱拍以级进经过音（<=2 半音）连接 -> 杜绝跨十几半音的狂跳；
+        - 每个 4 小节乐句复用同一节奏动机 -> 可记忆的律动钩子；
+        - 乐句轮廓在 拱形/波浪/上行/下行 间轮换 -> 有起伏而非无序游走。
+        向后兼容：无 melody_profile 时退化为均匀节奏的级进旋律。
+        """
+        self_in = request.melody_profile
+        variation = 0.3
+        if self_in and isinstance(self_in, dict):
+            variation = float(self_in.get("variation_strength", 0.3))
+        variation = max(0.0, min(1.0, variation))
+
         notes: List[Note] = []
-        pool = scale_pitches_in_range(request.key, 60, 83)  # C4 附近两八度
+        # 音域：读 melody_profile.register（如 "C4-C6"）；退化 C4(60)~B5(83)
+        low, high = 60, 83
+        if self_in and isinstance(self_in, dict):
+            reg = str(self_in.get("register", ""))
+            if reg and "-" in reg:
+                left, _, right = reg.partition("-")
+                low = _parse_pitch_name_to_midi(left) or 60
+                high = _parse_pitch_name_to_midi(right) or 83
+        pool = scale_pitches_in_range(request.key, low, high)
+        if not pool:
+            pool = scale_pitches_in_range(request.key, 60, 83)
+
+        unit = beats_per_bar / 4.0  # 四分音符长度（拍）
+
+        # 节奏动机（单小节内的 (拍偏移, 时长)，单位=拍；活动度从低到高）
+        MOTIFS = [
+            [(0, 1.0), (1.0, 0.5), (1.5, 0.5), (2.0, 1.0), (3.0, 0.5), (3.5, 0.5)],  # 蹦跳
+            [(0, 1.5), (1.5, 0.5), (2.0, 1.0), (3.0, 0.5), (3.5, 0.5)],            # 附点
+            [(0, 0.5), (0.5, 0.5), (1.0, 0.5), (1.5, 0.5),
+             (2.0, 0.5), (2.5, 0.5), (3.0, 0.5), (3.5, 0.5)],                      # 流动八分
+            [(0, 1.0), (1.0, 0.5), (1.5, 0.5), (2.0, 1.0), (3.0, 1.0)],            # 平稳
+        ]
+        phrase_len = 4  # 每 4 小节一乐句，乐句内复用同一动机
+        CONTOURS = ["arch", "wave", "ascend", "descend"]
+
+        # 第一遍：规划每个强拍（第 1、3 拍）的目标和弦音
+        plan: dict = {}
+        last: Optional[int] = None
+        for bar in range(request.bars):
+            chord = progression.get_chord(bar)
+            ctones = chord_tones_in_range(chord.chord_tones, low, high)
+            if not ctones:
+                ctones = [60 + (chord.root_pc - 60) % 12]
+            contour = CONTOURS[(bar // phrase_len) % len(CONTOURS)]
+            local = bar % phrase_len
+            for off in (0.0, 2.0):
+                if last is None:
+                    t = ctones[len(ctones) // 2]
+                else:
+                    ordered = sorted(ctones, key=lambda p: abs(p - last))
+                    t = ordered[0]
+                    if len(ordered) > 1:
+                        if contour == "ascend" and ordered[0] < last:
+                            t = ordered[1]
+                        elif contour == "descend" and ordered[0] > last:
+                            t = ordered[1]
+                        elif contour == "arch":
+                            if local < phrase_len // 2 and ordered[0] < last:
+                                t = ordered[1]
+                            elif local >= phrase_len // 2 and ordered[0] > last:
+                                t = ordered[1]
+                        if t == last:  # 避免连续完全相同，保持流动
+                            t = ordered[1]
+                plan[(bar, off)] = t
+                last = t
+
+        # 第二遍：按动机铺设音符，弱拍级进趋向下一个强拍目标
         current: Optional[int] = None
         for bar in range(request.bars):
             chord = progression.get_chord(bar)
+            ctones = chord_tones_in_range(chord.chord_tones, low, high)
+            if not ctones:
+                ctones = [60 + (chord.root_pc - 60) % 12]
+            phrase = bar // phrase_len
+            # 动机选择：活动度随 variation 提升；乐句间轮换制造对比
+            if variation > 0.6:
+                motif_idx = (phrase * 2) % len(MOTIFS)
+            elif variation < 0.25:
+                motif_idx = (phrase + len(MOTIFS) - 1) % len(MOTIFS)
+            else:
+                motif_idx = (phrase + (1 if variation > 0.5 else 0)) % len(MOTIFS)
+            motif = MOTIFS[motif_idx]
             bar_start = bar * beats_per_bar
-            chord_pool = chord_tones_in_range(chord.chord_tones, 60, 83)
-            if not chord_pool:
-                chord_pool = [60 + (chord.root_pc - 60) % 12]
-            # 每拍一个四分音符
-            for beat in range(int(beats_per_bar)):
-                t = bar_start + beat
-                strong = beat == 0 or beat == 2
-                phrase_end = bar == request.bars - 1 and beat == int(beats_per_bar) - 1
-                if strong or phrase_end:
-                    current = self._nearest(current, random.choice(chord_pool))
+            for (off, dur) in motif:
+                if off < 2.0:
+                    nxt_strong = plan.get((bar, 2.0)) or plan.get((bar + 1, 0.0))
                 else:
-                    current = self._step_or_hold(current, pool, chord_pool, chord_tone_prob=0.25)
-                if current is None:
-                    current = chord_pool[0]
+                    nxt_strong = plan.get((bar + 1, 0.0)) or plan.get((bar, 0.0))
+                if off in (0.0, 2.0):
+                    pitch = plan[(bar, off)]
+                    strong = True
+                else:
+                    pitch = _step_toward(current, nxt_strong, pool)
+                    strong = False
+                if pitch is None:
+                    pitch = pool[len(pool) // 2]
                 notes.append(
                     Note(
-                        pitch=current,
-                        start=t,
-                        duration=beats_per_bar / int(beats_per_bar) * 0.9,
-                        velocity=72 + random.randint(-6, 6),
+                        pitch=pitch,
+                        start=bar_start + off * unit,
+                        duration=dur * unit * 0.95,
+                        velocity=(78 if strong else 70) + random.randint(-3, 4),
                     )
                 )
+                current = pitch
         return notes
 
     def _bass_track(
@@ -347,6 +453,61 @@ def _nearest_index(pool: List[int], pitch: int) -> int:
     return best
 
 
+_PITCH_TONE = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4,
+               "F": 5, "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9,
+               "A#": 10, "Bb": 10, "B": 11}
+
+
+def _parse_pitch_name_to_midi(text: str) -> Optional[int]:
+    """解析音名字符串（如 'C4' / 'Bb2'）为 MIDI pitch；失败返回 None。"""
+    text = str(text).strip()
+    if not text:
+        return None
+    i = 0
+    while i < len(text) and not text[i].isdigit():
+        i += 1
+    if i == 0:
+        return None
+    name = text[:i].upper()
+    oct_str = text[i:] or ""
+    tone = _PITCH_TONE.get(name)
+    if tone is None:
+        return None
+    try:
+        octave = int(oct_str) if oct_str else 4
+    except ValueError:
+        return None
+    return (octave + 1) * 12 + tone
+
+
+def _interval(a: int, b: int) -> int:
+    """两 pitch 的绝对音程（半音数）。"""
+    return abs(a - b)
+
+
+def _step_toward(current: Optional[int], target: Optional[int], pool: List[int]) -> Optional[int]:
+    """从 current 朝 target 方向级进（<=2 半音）取一个音阶音；无方向则向音域中心小幅移动（保持线条流动）。
+
+    用于弱拍经过音：保证相邻音程极小（杜绝狂跳），且尽量不原地重复，让旋律始终在动。
+    """
+    if not pool:
+        return current
+    if current is None:
+        return min(pool, key=lambda p: abs(p - (target if target is not None else 72)))
+    # 朝 target 方向取一个 <=2 半音的音阶邻音
+    if target is not None and target != current:
+        direction = 1 if target > current else -1
+        cands = [p for p in pool if (p - current) * direction > 0 and abs(p - current) <= 2]
+        if cands:
+            return min(cands, key=lambda p: abs(p - target))
+    # 目标已到达或在边界：朝音域中心小幅移动，避免原地重复
+    center = (min(pool) + max(pool)) // 2
+    steps = [p for p in pool if 0 < abs(p - current) <= 2]
+    if not steps:
+        return current
+    return min(steps, key=lambda p: abs(p - center))
+
+
 def _beats_per_bar(time_signature: str) -> float:
     """按拍号计算每小节拍数（4/4 -> 4.0）。"""
     try:
@@ -354,3 +515,18 @@ def _beats_per_bar(time_signature: str) -> float:
         return float(num) * 4.0 / float(den)
     except (ValueError, AttributeError):
         return 4.0
+
+
+def _chords_track_block(
+    tones: List[int], bar_start: float, beats_per_bar: float
+) -> List[Note]:
+    """块状和弦：整小节所有和弦音同时按下（sustain），即「一起按下去」。"""
+    return [
+        Note(
+            pitch=tone,
+            start=bar_start,
+            duration=beats_per_bar - 0.05,
+            velocity=58 + random.randint(-4, 6),
+        )
+        for tone in tones
+    ]

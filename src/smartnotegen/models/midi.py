@@ -117,7 +117,10 @@ class MidiDocument:
         except Exception as exc:
             raise InputFileError(f"无法解析 MIDI 文件: {target} ({exc})", code=3) from exc
 
-        bpm = int(pm.estimate_tempo()) if pm.estimate_tempo() else 120
+        # 使用 MIDI 中真实的拍速事件，而非 estimate_tempo()（后者按音符密度猜测，
+        # 会返回错误值如 180 而非 120，导致读回的 beat 时间整体缩放）。
+        _times, _tempos = pm.get_tempo_changes()
+        bpm = int(_tempos[0]) if len(_tempos) else 120
         doc = cls(bpm=bpm)
         for inst in pm.instruments:
             notes = [

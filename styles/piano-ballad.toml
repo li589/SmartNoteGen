@@ -1,0 +1,17 @@
+# 自定义风格：piano-ballad（钢琴抒情）
+# 温暖钢琴叙事 —— 原声大钢琴主奏 + 弦乐铺底 + 原声贝斯
+name = "piano-ballad"
+bpm_range = [88, 108]
+# 轨道 -> GM Program：
+#   chords=48 (String Ensemble 1) 弦乐铺底，温暖浓郁
+#   melody=0 (Acoustic Grand Piano) 原声大钢琴主奏！
+#   bass=33 (Electric Bass pick) 贝斯
+#   drums=0 (Standard Kit)
+instruments = { chords = 48, melody = 0, bass = 33, drums = 0 }
+rhythm_pattern = "pop"
+# 主旋律：中低到高音区宽幅起伏，级进为主 + 考究的节奏变化
+# variation_strength=0.55：更强的句法对比与呼吸感，音域 C3-D5 制造起伏
+melody_profile = { register = "C3-D5", interval_bias = "step", variation_strength = 0.55 }
+# 和弦偏好：经典抒情 pop 走向
+chord_preference = ["C-G-Am-F", "Am-F-C-G", "C-Am-F-G", "F-C-G-Am"]
+dsp_defaults = { fade_in_ms = 100, fade_out_ms = 300, normalize_dbfs = -1.0 }

@@ -1,0 +1,16 @@
+# 自定义风格：starsea（星海）
+# 现代抒情 ballads —— 温暖叙事、弦乐/钢琴铺底、空旷听感
+# 为原创曲《星海彼岸》(Beyond the Starry Sea) 设计
+name = "starsea"
+bpm_range = [88, 108]
+# 轨道 -> GM Program：chords=钢琴(0 close 温暖) / melody=悠扬主奏(81 Lead+暖音)
+# 采用流行既定映射：chords 0 钢琴、melody 81 Lead、bass 33 ElectricBass、drums 0
+instruments = { chords = 0, melody = 81, bass = 33, drums = 0 }
+# 引用 RhythmPatternRegistry 内置节奏型 —— 用 pop（均匀八分律动，叙事感中正稳）
+rhythm_pattern = "pop"
+# 主旋律轮廓：C4-C6 中高音区，以级进为主（step），变化强度低（保持旋律连贯可记）
+melody_profile = { register = "C4-C6", interval_bias = "step", variation_strength = 0.2 }
+# 和弦偏好：星海主题使用 vi-IV-I-V 与 IV-V 的现代抒情进行（温暖向上 / 明亮解渴）
+chord_preference = ["F#m-D-A-E", "D-A-E-F#m", "A-E-F#m-D", "F#m-D-E-A"]
+# DSP 默认：相对轻柔淡入淡出 + 轻度归一化（保留动态呼吸感）
+dsp_defaults = { fade_in_ms = 120, fade_out_ms = 400, normalize_dbfs = -1.5 }

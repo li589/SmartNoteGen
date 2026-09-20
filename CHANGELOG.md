@@ -22,26 +22,52 @@
   `exclude = ["Suno-Cat-Catch-Resolve*"]`：该目录名含连字符、不是合法包名，
   必须排除，否则主包打包时会收录成非法包名。
 
+### 工程化
+- **`src/videomaker/` 与 `reports/`、`styles/` 纳入版本控制**：videomaker 源码（v0.1.0 → v0.3.0
+  全部交付）此前只存在于工作区、从未入库；本次连同 `tests/test_videomaker.py`（30 例）与
+  `tests/test_videomaker_v03.py`（26 例）、4 份交付报告一并入库。
+- **清理 `src/videomaker/` 16 处 lint 问题**：未使用导入（F401 ×13）、空 f-string（F541）、
+  歧义变量名 `l`（E741）、死变量 `ring_alpha`（F841）。主包 `packages.find` 会收录
+  videomaker，而 CI 的 `ruff check src/` 此前从未扫过它——推送到 main 会直接红灯，故一并修正。
+
 ### 文档
 - `README.md` 新增「Suno-Cat-Catch-Resolve 子项目」一节（含两类产物对照表与命名约定）。
+- videomaker 交付报告归档至 `reports/`（v0.1 → v0.3.0 共 4 份）。
 
-## [0.5.4] - 2026-08-15（旋律生成增强：乐句驱动 + 节奏变化 + 音域起伏）
+## [0.5.4] - 2026-09-20（旋律生成增强：动机驱动乐句 + 伴奏织体 + 读回拍速修复）
+
+> 说明：本条目描述的是**实际交付到 main 的实现**。此前 `[0.5.4]` 段落曾以
+> 「2 小节乐句 / 休止符呼吸 / 句尾长音」描述一版从未入库的中间稿，
+> 与最终代码不符，此处按实际实现重写。
 
 ### 增强
-- **`procedural._melody_track` 重写**：从「每拍均匀四分音符」升级为乐句驱动随机游走——
-  以 2 小节为一句的高→低→收轮廓、休止符呼吸、八分跑动、句尾长音收束。
-- **真正读取 `melody_profile`**：`register`（解析 `C3-D5` 音名区间）与 `variation_strength`
-  现在会控制旋律音域与节奏活跃度（此前未生效）。
-- **`_chords_track` sustain 模式增强**：奇数小节块状和弦 + 偶数小节慢速琶音分解，
-  伴奏不再单调。
+- **`procedural._melody_track` 重写为动机驱动**：从「每拍均匀四分音符随机游走」升级为
+  可记忆的乐句结构——
+  - 4 小节一乐句，乐句内复用同一节奏动机（`MOTIFS`：蹦跳 / 附点 / 流动八分 / 平稳），
+    乐句之间轮换，形成律动钩子；
+  - 强拍（每小节第 1、3 拍）由两遍规划法落在当前和弦音上，和声清晰、有明确调性；
+  - 弱拍用 `_step_toward` 级进（相邻音程 ≤2 半音）趋向下一个强拍目标，杜绝跨八度狂跳；
+  - 乐句轮廓在 拱形 / 波浪 / 上行 / 下行 之间轮换，旋律有起伏而非无序游走。
+- **真正读取 `melody_profile`**：`register`（解析 `C4-C6` 之类音名区间）控制旋律音域，
+  `variation_strength` 控制动机活动度（此前两者均未生效）。
+- **`_chords_track` 织体增强**：
+  - 新增 `block` 密度模式（`_chords_track_block`）：整小节所有和弦音同时按下；
+  - `sustain` 模式改为奇数小节块状和弦 + 偶数小节慢速琶音分解，伴奏不再单调。
+
+### 修复
+- **`models/midi.py` 读回拍速错误**：改用 `pretty_midi.get_tempo_changes()` 读取 MIDI 真实
+  拍速事件，替代按音符密度猜测的 `estimate_tempo()`——后者会把 120 BPM 的文件猜成 180，
+  导致读回后的 beat 时间轴整体缩放。
 
 ### 新增
-- 自定义风格 `styles/starsea.toml`（现代抒情 ballads）与 `styles/piano-ballad.toml`（钢琴+弦乐叙事）。
-- 新增 `_parse_pitch_name_to_midi` / `_interval` 工具（音名区间解析 / 音程）。
+- 自定义风格 `styles/piano-cheerful.toml`（欢快钢琴 solo：C4-C6 明亮音域、variation 0.7），
+  与 `styles/starsea.toml`（现代抒情 ballads）、`styles/piano-ballad.toml`（钢琴+弦乐叙事）。
+- 内置 `STYLE_PRESETS` 新增 `piano-cheerful`（钢琴主奏 + 块状和弦伴奏）。
+- 新增 `_parse_pitch_name_to_midi` / `_step_toward` 工具（音名区间解析 / 级进取音）。
 
 ### 测试
 - 版本号 `0.5.3` → `0.5.4`（`__init__.py` / `pyproject.toml` / `test_cli.py::test_version` 同步）。
-- 全量现有测试通过（含 test_generators 10 例），旋律变更向后兼容（无 profile 时退化旧行为）。
+- 全量 388 例测试通过，旋律变更向后兼容（无 `melody_profile` 时退化为级进旋律）。
 
 ## [0.5.3] - 2026-08-14（DiffRhythm 仓库路径可命令行配置 + 测试）
 
