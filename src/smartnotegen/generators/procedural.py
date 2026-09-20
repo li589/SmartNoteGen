@@ -480,11 +480,6 @@ def _parse_pitch_name_to_midi(text: str) -> Optional[int]:
     return (octave + 1) * 12 + tone
 
 
-def _interval(a: int, b: int) -> int:
-    """两 pitch 的绝对音程（半音数）。"""
-    return abs(a - b)
-
-
 def _step_toward(current: Optional[int], target: Optional[int], pool: List[int]) -> Optional[int]:
     """从 current 朝 target 方向级进（<=2 半音）取一个音阶音；无方向则向音域中心小幅移动（保持线条流动）。
 

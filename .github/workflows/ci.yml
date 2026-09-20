@@ -14,7 +14,8 @@ jobs:
         python-version: ["3.12"]
 
     steps:
-      - uses: actions/checkout@v4
+      # 官方 action 用 v7 及以上：v4/v5 仍跑 node20，GitHub 已对 node20 运行时报弃用告警。
+      - uses: actions/checkout@v7
 
       - name: Pull SoundFonts from Git LFS
         run: |
@@ -26,7 +27,7 @@ jobs:
           git lfs pull --include="module/GeneralUser_GS/**/*.sf2"
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 

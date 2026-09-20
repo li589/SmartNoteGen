@@ -24,7 +24,11 @@ output/
 # ===== QA 测试残留（fluidsynth 改名探针）=====
 module/fluidsynth_qa_hidden/
 
-# ===== 根目录测试残留（test_generators 写入 CWD）=====
+# ===== 根目录 .mid 防御规则（触发条件已不复现）=====
+# 历史遗留：早期 test_generators 的可复现性测试曾把 .mid 写到 CWD。
+# 2026-09-20 复核：tests/test_generators.py 三例均已显式使用 tmp_path，
+# 全量跑测后根目录无任何 .mid 残留（规则实际保护对象为空）。
+# 保留作为防御网；若将来确实需要提交根目录 .mid，请先删掉本规则。
 /*.mid
 
 # ===== tests/ 调试产物（videomaker / render 手动冒烟输出，勿入库）=====
