@@ -43,6 +43,12 @@
   - `ci.yml` 增加 `apt-get install fluidsynth ffmpeg`，并新增「渲染环境自检」步骤
     （校验 fluidsynth/ffmpeg 可用 + SoundFont 存在），让环境问题早暴露。
     SoundFont 与 Windows 二进制本就随版本控制入库（293M），CI 无需额外下载。
+- **SF2 可加载性校验不再依赖音频设备**：fluidsynth 加载 SoundFont 时会一并初始化
+  音频输出，CI 容器没有声卡，导致合法音色库被误判为 BROKEN（进而抛 ModuleError(7)，
+  表现为 `test_inspire_diff::test_new_non_tty` 返回 7）。类 Unix 平台改为显式使用
+  `dummy` 哑驱动；Windows 发行版**不含 dummy**（实测可用驱动仅
+  dsound/file/wasapi/waveout），故不加参数、行为不变。
+  CI 自检步骤同时打印音频驱动列表与 SF2 加载退出码，便于定位此类环境问题。
 - **跨平台测试修正**：占位二进制（`b"MZ"`）统一补 `chmod(0o755)`。POSIX 的
   `os.access(X_OK)` 要求真实执行位（Windows 上等价于存在性检查），此前
   `test_env.py` 3 例在 CI 上因此把「存在的假二进制」误判为 BROKEN。

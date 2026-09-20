@@ -27,7 +27,7 @@ from typing import Callable, List, Optional, Union
 from smartnotegen.config import Config
 from smartnotegen.exceptions import ConfigError, ModuleError, RenderError
 from smartnotegen.logging_setup import get_logger
-from smartnotegen.platform_paths import system_fluidsynth
+from smartnotegen.platform_paths import sf2_probe_audio_args, system_fluidsynth
 
 logger = get_logger("env")
 
@@ -280,8 +280,12 @@ class PathResolver:
         注意：Windows 版 fluidsynth 对无法识别的文件仍返回 0，但会在输出中打印
         "not a SoundFont or MIDI file" / "error occurred identifying it"，
         因此以「退出码 0 且无上述错误文本」作为可加载判定。
+
+        另：加载 SF2 会一并初始化音频输出，无声卡环境（CI 容器）会因此失败。
+        故类 Unix 平台显式使用 dummy 哑驱动（见 platform_paths.sf2_probe_audio_args），
+        避免把合法音色库误判为 BROKEN。
         """
-        cmd = [str(fs), "-ni", str(sf)]
+        cmd = [str(fs), "-ni", *sf2_probe_audio_args(), str(sf)]
         try:
             if self.runner is not None:
                 result = self.runner(cmd)

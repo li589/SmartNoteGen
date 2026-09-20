@@ -41,6 +41,14 @@ jobs:
           fluidsynth --version
           ffmpeg -version | head -n 1
           test -f module/GeneralUser_GS/GeneralUser-GS/GeneralUser-GS.sf2
+          echo "--- 可用音频驱动 ---"
+          fluidsynth -a help 2>&1 | head -n 5 || true
+          echo "--- SF2 加载探测（与 _probe_sf2_loadable 同命令）---"
+          set +e
+          timeout 30 fluidsynth -ni -a dummy module/GeneralUser_GS/GeneralUser-GS/GeneralUser-GS.sf2 > /tmp/sf2probe.log 2>&1
+          echo "exit_code=$?"
+          tail -n 15 /tmp/sf2probe.log
+          set -e
 
       - name: Test with pytest
         run: python -m pytest --cov --cov-report=term-missing --cov-fail-under=87
