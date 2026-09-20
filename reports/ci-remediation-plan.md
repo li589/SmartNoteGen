@@ -1,7 +1,7 @@
 # CI 修复与下一步路线图
 
 > 生成：2026-09-20 ｜ 触发：整理并推送 5 个提交后，CI 仍红灯
-> 状态：**路线 A 已执行**（见文末「执行结果」）
+> 状态：**已完成 —— CI 首次全绿**（run 35502250795）
 
 ---
 
@@ -115,9 +115,32 @@
 - **覆盖率**：86.71%（本地，修复中）→ **87.22%**（达标）。新增回落代码若不计入测试
   会反向拉低覆盖率（曾跌到 86.71%），故补齐了新增分支的覆盖。
 
-### 遗留观察项（待 CI 实跑验证）
-- `test_inspire_diff::test_new_non_tty` 依赖真实渲染链路，修复前 CI 返回 7
-  （渲染环境不完整）。环境修好后预期转为允许值（0/1/2/6）；**未预先放宽断言**，
-  以免掩盖真实问题。
-- Linux fluidsynth（apt，2.3.x）与 Windows 版（2.5.7）的**输出文本可能不同**，
-  而 `_probe_sf2_loadable` 依赖错误文本判据；真实 probe 的测试若失败需按平台修订判据。
+### 实际结果：三次迭代后 CI 全绿
+
+| 提交 | 改动 | CI 结果 |
+|---|---|---|
+| `3fa27db` | fluidsynth POSIX 回落 + apt 装 fluidsynth/ffmpeg + 测试补 chmod | 8 failed → **1 failed**；覆盖率 86.30% → 86.94% |
+| `053eb7a` | SF2 校验加 `-a dummy`（**方向错误，已撤回**） | 仍 1 failed；但自检诊断暴露真根因 |
+| `20f4f73` | **LFS 拉取音色库** + SF2 校验改 `file` 驱动 | **全绿**；覆盖率 87.01% |
+
+**真实根因（与最初推测完全不同）**：
+
+1. **Git LFS 未拉取** —— `.gitattributes` 把 `module/**/*.sf2|exe|dll|ogg` 交给 Git LFS，
+   而 `actions/checkout` 默认**不拉取 LFS 实体**。CI 上 `.sf2` 是文本指针文件，
+   前 4 字节是 `vers`(`0x73726576`) 而非 `RIFF`(`0x46464952`)，fluidsynth 无法识别 →
+   合法音色库被判 BROKEN → ModuleError(7) → `test_new_non_tty` 退出码 7。
+   修复：`git lfs pull --include="module/GeneralUser_GS/**/*.sf2"`（实测仅 31M）。
+2. **Ubuntu 版 fluidsynth 不编译 `dummy` 驱动** —— 实测可用驱动仅
+   alsa/file/jack/oss/pipewire/pulseaudio/sdl2，故 `-a dummy` 只会让校验必然失败。
+   改用 `file` 驱动（两平台都有，无需平台分支），并以临时目录为 cwd 隔离其产出的
+   `fluidsynth.wav`，避免污染工作目录。
+
+**经验教训**：
+
+- 前两轮基于推测改代码，**第二轮方向完全错误**。第三轮改为「先在 CI 加自检步骤
+  打印关键事实（文件魔数 / 退出码 / 驱动列表）」，一轮命中根因 —— **取证优于推测**。
+- `test_inspire_diff::test_new_non_tty` 全程**未放宽断言**，最终由环境修复自然通过，
+  没有用「放宽测试」掩盖真实问题。
+- **未调整覆盖率门槛**（87%）：通过补齐新增分支的测试达到，本地 87.24% / CI 87.01%。
+- 最终保留的有效修复：`platform_paths.system_fluidsynth()` 的 POSIX 平台回落
+  （Windows 恒不触发）。
