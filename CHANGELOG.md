@@ -36,7 +36,8 @@
   猫抓路径 = `downloadhelper batch` 直通（报告口径不变）；三个 API 源为配置驱动留位
   （gitignored `sources.toml` + 统一 HTTP 契约，mock 契约测试锁定），错误码
   **25 = 凭证缺失、26 = 请求失败**。不做客户端逆向（既定边界）。
-- `requirements` 层面：主包依赖新增 `pillow`（video 子模块需要，原为 videomaker 隐式依赖）。
+- `requirements` 层面：主包依赖新增 `pillow`（video 子模块需要，原为 videomaker 隐式依赖）
+  与 `scipy==1.18.0`（R6 DSP：resample_poly + EBU R128 K 加权；CI 曾因缺 scipy 收集失败）。
 
 ### 测试
 - 根套件 1046 → **1256 例**：download 子包 4 个测试文件（147 例）并入根 `tests/`；
