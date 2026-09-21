@@ -61,7 +61,7 @@ def _first_generated_midi(tmp_path: Path) -> Path:
 def test_version():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "sunoaux 0.7.0" in _text(result)
+    assert "sunoaux 1.0.0" in _text(result)
 
 
 def test_pre_group_lists_five_commands():

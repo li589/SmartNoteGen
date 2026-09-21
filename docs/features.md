@@ -1,6 +1,7 @@
 # SmartNoteGen 功能清单（三组件全量）
 
 > 版本快照：`smartnotegen 0.5.4` · `videomaker 0.3.0` · `suno-cat-catch-resolve 0.1.0`
+> （历史快照，组件现已统一为单一发行版 `sunoauxtool` 1.0.0；旧版本号不再更新）
 > 生成日期：2026-09-20 ｜ 依据：源码（`src/`）与 CLI 实测 `--help`，非文档转述
 
 ## 一、概览

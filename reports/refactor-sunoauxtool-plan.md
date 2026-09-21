@@ -139,9 +139,13 @@
   `config/sources.toml` + 统一 HTTP 契约，mock 契约测试锁定；文档脱敏）
 - 验收：猫抓路径回归通过；API adapter 有契约测试（mock HTTP）
 
-### Phase R8 — 收口发布
-- [ ] 版本 1.0.0（定位成 Tool 后语义化大版本）或 0.7.0（保守）；CHANGELOG、docs 全量校对
-- [ ] CI 全绿 + 推送 + tag
+### Phase R8 — 收口发布（✅ 2026-09-21）
+- [x] 版本 **1.0.0**（采纳语义化大版本：0.7.0 批次从未打 tag，更名 + R3-R7 全量并入一次发布）；
+  CHANGELOG（0.7.0 节改题为 1.0.0，测试基线刷新 1256 例 / 87.53%）、docs 校对
+  （README 版本口径、features.md 历史快照标注）
+- [x] CI 全绿 + 推送 + tag v1.0.0
+- [x] 本地目录改名 `D:\New\Music\SmartNoteGen` → `D:\New\Music\SunoAuxTool`
+  （R1 遗留项；改名后 editable 重装恢复）
 
 ---
 

@@ -1,7 +1,7 @@
 # SunoAuxTool
 
 **Suno / 海绵音乐 / 网易天音等 AI 音乐工具的前期 + 后期处理工具箱**（原 SmartNoteGen，
-v0.7.0 起统一为单一发行版 `sunoauxtool`）。
+v1.0.0 起统一为单一发行版 `sunoauxtool`）。
 
 - **前期**：旋律制作、程序化多轨 MIDI 生成、谱面产出（五线谱/简谱/MusicXML）、MIDI↔WAV 互转
 - **后期**：音频下载/转码（猫抓取证 + API adapter 留位，DownloadHelper）、DSP（规划中）、
@@ -57,7 +57,7 @@ smartnotegen pipeline
 # → 打印：文件路径 + 元数据（时长/采样率/位深/和弦进行/seed）
 ```
 
-也可以用聚合入口 `sunoaux`（v0.7.0 起）：`pre` = 前期创作，`post` = 后期处理
+也可以用聚合入口 `sunoaux`（v1.0.0 起）：`pre` = 前期创作，`post` = 后期处理
 （详见 `sunoaux --help`）：
 
 ```bash
