@@ -305,7 +305,7 @@ def test_build_lrc_with_lyrics(tmp_path):
     lrc = tmp_path / "lyrics.lrc"
     adapter._build_lrc("第一句\n第二句", 90.0, lrc)
     text = lrc.read_text(encoding="utf-8")
-    assert "[ti:SmartNoteGen]" in text
+    assert "[ti:SunoAuxTool]" in text
     assert "第一句" in text
     assert "第二句" in text
 
@@ -315,4 +315,4 @@ def test_build_lrc_empty(tmp_path):
     lrc = tmp_path / "empty.lrc"
     adapter._build_lrc(None, 95.0, lrc)
     text = lrc.read_text(encoding="utf-8")
-    assert "[ti:SmartNoteGen]" in text
+    assert "[ti:SunoAuxTool]" in text

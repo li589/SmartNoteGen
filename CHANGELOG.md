@@ -21,7 +21,12 @@
 - **聚合 CLI 入口 `sunoaux`（R3）**：`pre`（melody/midi/score/render/transcribe，前期创作）
   + `post`（probe/convert/fetch/video/dsp/enhance，后期处理）两组子命令，统一入口。
   薄转发层（`sunoauxtool.aggregate`）直接二次注册既有命令函数——零参数复制、零业务逻辑、
-  错误码原样透传；`post dsp` / `post enhance` 为 R6/R5 交付占位（干净失败 exit 1）。
+  错误码原样透传；`post dsp` 为 R6 交付占位（干净失败 exit 1）。
+- **AudioSR 音质提升适配器（R5）**：`post enhance <wav> [-o out] [--model basic|speech]
+  [--steps 50] [--chunk 15] [--overlap 2]`。适配器 `sunoauxtool/ai/audiosr.py` 延迟导入
+  （未装依赖不影响主包与 CI，退出码 6 带安装指引）；长音频自动分块 + Hann 交叉淡化 +
+  块级峰值还原；输出单声道 48kHz WAV。依赖说明见 `requirements/vasr.txt`
+  （源码目录模式，权重首次运行自动下载 ~2.6GB）。
 - `requirements` 层面：主包依赖新增 `pillow`（video 子模块需要，原为 videomaker 隐式依赖）。
 
 ### 测试

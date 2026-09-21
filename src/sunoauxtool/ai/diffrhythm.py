@@ -187,7 +187,7 @@ class DiffRhythmAdapter(AIGenerator):
         lines = [ln.strip() for ln in (lyrics or "").splitlines() if ln.strip()]
         n = max(len(lines), 1)
         seg = duration / n
-        buf = ["[ti:SmartNoteGen]"]
+        buf = ["[ti:SunoAuxTool]"]
         for i, line in enumerate(lines):
             secs = i * seg
             mm = int(secs // 60)

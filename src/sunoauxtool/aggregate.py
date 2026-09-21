@@ -11,7 +11,7 @@
     sunoaux post probe / convert / fetch                        （后期：取回与转码）
     sunoaux post video render / multi                           （后期：音乐视频）
     sunoaux post dsp        （R6 交付占位）
-    sunoaux post enhance    （R5 交付占位，AudioSR 超分）
+    sunoaux post enhance    （AudioSR 音质提升，R5；依赖可选装）
 
 映射表（新 -> 旧）：
     pre  melody      -> sunoauxtool generate melody
@@ -27,11 +27,16 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 
 from sunoauxtool import __version__
 from sunoauxtool import cli as core_cli
+from sunoauxtool.ai.audiosr import AudioSRAdapter
+from sunoauxtool.commands.helpers import _guard
 from sunoauxtool.download import cli as download_cli
+from sunoauxtool.exceptions import InputFileError
 from sunoauxtool.video import cli as video_cli
 
 app = typer.Typer(
@@ -100,10 +105,45 @@ def dsp_stub() -> None:
     _not_implemented("dsp", "R6")
 
 
-@post_app.command("enhance", help="[R5 交付] AudioSR 音质提升——尚未接线")
-def enhance_stub() -> None:
-    """R5（VASR 接入）交付占位。"""
-    _not_implemented("enhance", "R5")
+@post_app.command(
+    "enhance",
+    help="AudioSR 音质提升/超分（R5；长音频自动分块交叉淡化；未装依赖 exit 6）",
+)
+@_guard
+def enhance_cmd(
+    audio: str = typer.Argument(..., help="输入音频路径（WAV）"),
+    output: Path = typer.Option(None, "-o", "--output", help="输出 WAV（默认 <输入>_enhanced.wav）"),
+    model: str = typer.Option("basic", "--model", help="模型：basic（音乐/通用）| speech"),
+    seed: int = typer.Option(42, "--seed", help="随机种子"),
+    steps: int = typer.Option(50, "--steps", help="DDIM 步数（默认 50）"),
+    chunk: float = typer.Option(15.0, "--chunk", help="长音频分块秒数"),
+    overlap: float = typer.Option(2.0, "--overlap", help="分块重叠秒数"),
+) -> None:
+    """AudioSR 超分（R5）：输出单声道 48kHz WAV（上游管线行为）。"""
+    src = Path(audio)
+    if not src.is_file():
+        raise InputFileError(f"输入音频不存在: {src}", code=3)
+    out = output or src.with_name(src.stem + "_enhanced.wav")
+
+    adapter = AudioSRAdapter(
+        model_name=model,
+        seed=seed,
+        ddim_steps=steps,
+        chunk_duration_s=chunk,
+        overlap_duration_s=overlap,
+    )
+    if not adapter.is_available():
+        from sunoauxtool.exceptions import AiDependencyError
+
+        raise AiDependencyError(
+            "audiosr 不可用：未找到 AudioSR 源码目录"
+            "（设 AUDIOSR_DIR 或克隆到 src/versatile_audio_super_resolution，"
+            "依赖见 requirements/vasr.txt）",
+            code=6,
+        )
+
+    written = adapter.enhance(str(src), str(out))
+    typer.echo(f"✅ 音质提升完成: {written}")
 
 
 video_app = typer.Typer(help="音乐视频（= videomaker）", no_args_is_help=True)

@@ -256,7 +256,67 @@ def test_post_dsp_stub_exit_1():
     assert "R6" in result.output
 
 
-def test_post_enhance_stub_exit_1():
-    result = runner.invoke(app, ["post", "enhance"])
-    assert result.exit_code == 1
-    assert "R5" in result.output
+# ---------------------------------------------------------------------------
+# post enhance：AudioSR 适配器（R5，推理路径 mock，不触发真实模型）
+# ---------------------------------------------------------------------------
+
+
+def test_post_enhance_missing_input_exit_3(tmp_path):
+    """输入检查前置（不依赖 audiosr 是否就位，CI 上也可跑）。"""
+    result = runner.invoke(app, ["post", "enhance", str(tmp_path / "nope.wav")])
+    assert result.exit_code == 3
+
+
+def test_post_enhance_dependency_unavailable_exit_6(tmp_path, monkeypatch):
+    from sunoauxtool.ai.audiosr import AudioSRAdapter
+
+    src = tmp_path / "a.wav"
+    src.write_bytes(b"RIFF")  # 输入检查先行，必须真实存在才能到达依赖检查
+    monkeypatch.setattr(AudioSRAdapter, "is_available", lambda self: False)
+    result = runner.invoke(app, ["post", "enhance", str(tmp_path / "a.wav")])
+    assert result.exit_code == 6
+    assert "audiosr 不可用" in result.output
+
+
+def test_post_enhance_mock_success(tmp_path, monkeypatch):
+    from sunoauxtool.ai.audiosr import AudioSRAdapter
+
+    src = tmp_path / "a.wav"
+    src.write_bytes(b"RIFF")
+
+    def fake_enhance(self, input_path, output_path):
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(b"RIFF")
+        return str(out)
+
+    monkeypatch.setattr(AudioSRAdapter, "is_available", lambda self: True)
+    monkeypatch.setattr(AudioSRAdapter, "enhance", fake_enhance)
+    result = runner.invoke(app, ["post", "enhance", str(src)])
+    assert result.exit_code == 0, result.output
+    assert "音质提升完成" in result.output
+    assert (tmp_path / "a_enhanced.wav").is_file()
+
+
+def test_post_enhance_forwards_params(tmp_path, monkeypatch):
+    from sunoauxtool.ai.audiosr import AudioSRAdapter
+
+    src = tmp_path / "b.wav"
+    src.write_bytes(b"RIFF")
+    seen = {}
+
+    def fake_enhance(self, input_path, output_path):
+        seen.update(model=self.model_name, seed=self.seed, steps=self.ddim_steps)
+        Path(output_path).write_bytes(b"RIFF")
+        return str(output_path)
+
+    monkeypatch.setattr(AudioSRAdapter, "is_available", lambda self: True)
+    monkeypatch.setattr(AudioSRAdapter, "enhance", fake_enhance)
+    result = runner.invoke(
+        app,
+        ["post", "enhance", str(src), "--model", "speech", "--seed", "7",
+         "--steps", "30", "-o", str(tmp_path / "out.wav")],
+    )
+    assert result.exit_code == 0, result.output
+    assert seen == {"model": "speech", "seed": 7, "steps": 30}
+    assert (tmp_path / "out.wav").is_file()

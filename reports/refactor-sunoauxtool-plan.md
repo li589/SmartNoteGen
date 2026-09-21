@@ -91,11 +91,14 @@
 - [x] 旧入口 `smartnotegen` / `videomaker` / `downloadhelper` / `sunoauxtool` 保留（兼容期 ≥1 个版本）
 - 验收：`tests/test_aggregate_cli.py` 24 例（每子命令 2+，含真实引擎 e2e 与错误码透传）；旧入口测试零改动通过
 
-### Phase R4 — Python 包名迁移（手术最大，可选/可延后）
-- [ ] `smartnotegen` → `sunoauxtool`（或 `sat.core`）：机械替换 import + pyproject + 守卫测试
-- [ ] 保留 `smartnotegen` 兼容 shim 包一个版本（`from sunoauxtool import *` + deprecation warning）
-- [ ] videomaker / Cat-Catch 的跨包 import 同步
-- 验收：根套件与子包套件全绿；`pip install -e .` 后新旧 import 均可用
+### Phase R4 — Python 包名迁移（手术最大，可选/可延后）（✅ 2026-09-21 完成，提前随 R1.5 落地）
+- [x] `smartnotegen` → `sunoauxtool`：机械替换 import + pyproject + 守卫测试
+  （实际随 R1.5 三包合一一次完成，commit 899c7db）
+- [x] 保留 `smartnotegen` / `videomaker` 兼容 shim 包（sys.modules 别名 + deprecation warning）
+- [x] videomaker / Cat-Catch 的跨包 import 同步
+- **验收复核（2026-09-21）**：新旧 import 均可用（shim 触发 DeprecationWarning ✓）；
+  版本镜像守卫 4/4 ✓；`src/sunoauxtool` + `tests/` 中 `smartnotegen` 引用 **归零**；
+  唯一可见品牌残留 `[ti:SmartNoteGen]` lrc 标签已随 R5 改为 `[ti:SunoAuxTool]`（2 处断言同步）
 
 ### Phase R5 — VASR 接入（音质提升/分离修复）
 - ✅ **兼容性验证（2026-09-21 实测，改写原方案）**：AudioSR 在主 venv 现代栈下
@@ -112,10 +115,15 @@
   - **R5 方案简化**：原「独立 venv 推理」前提不成立 → 主 venv 直调；入库 =
     删嵌套 `.git`（记 fork 基线）+ ruff 153 处清理 + 重写 requirements +
     薄适配器（延迟导入 + `is_available()` + 退出码 6）
-- [ ] 入库三步执行（见 R0 结论 + 上述修正）
-- [ ] CLI：`post enhance <wav>`（超分，`--model basic|speech`）；分离修复能力
+- [ ] 入库三步执行（见 R0 结论 + 上述修正）——**待办：删内嵌 .git / ruff 153 处 / 放宽 setup.py 三钉**
+- [x] 薄适配器 + CLI（2026-09-21）：`sunoauxtool/ai/audiosr.py`（延迟导入、
+  `AUDIOSR_DIR`/默认目录定位、`is_available()`、失败退出码 6）接线
+  `post enhance <wav> [-o] [--model basic|speech] [--steps] [--chunk] [--overlap]`；
+  长音频走上游 `super_resolution_long_audio`（15s 块 / 2s 重叠 Hann 交叉淡化 / 峰值还原）；
+  32s 冒烟时长精确对齐；测试 4 例（mock 推理，真实路径见本机验证记录）
+- [x] CLI：`post enhance <wav>`（超分，`--model basic|speech`）；分离修复能力
       以 AudioSR 实际功能为界（超分/高频重建，非人声分离——人声分离另行选型）
-- [ ] 真实推理路径已验证 ✓（2026-09-21，对照 basicpitch「未验证」教训已闭环）
+- [x] 真实推理路径已验证 ✓（2026-09-21：32s 冒烟 + 整首歌《星星泪-银临风》5:13 实跑）
 - 验收：适配器单测（mock 权重路径）+ 真实样本回归脚本
 
 ### Phase R6 — DSP 功能包（全新，先规格后实现）

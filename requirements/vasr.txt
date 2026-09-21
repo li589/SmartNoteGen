@@ -1,0 +1,25 @@
+# --- AudioSR（VASR，R5 音质提升/超分）可装依赖 ----------------------------
+# 上游源码：src/versatile_audio_super_resolution（haoheliu fork @ d312fba，
+# 内嵌 .git 未清理前不入 git；定位走 AUDIOSR_DIR 环境变量或该默认路径）。
+# 适配器：sunoauxtool/ai/audiosr.py（延迟导入，未装不影响主包与 CI 零 torch 断言）。
+# CLI：sunoaux post enhance <wav>（未装依赖 -> 退出码 6）。
+#
+# 使用方式（二选一）：
+#   1) 源码目录模式（当前采用，无需 pip 安装）：
+#      源码放 src/versatile_audio_super_resolution，运行时自动挂 sys.path；
+#      或设 AUDIOSR_DIR 指向任意 audiosr 源码目录。
+#   2) pip editable：pip install -e src/versatile_audio_super_resolution
+#      ⚠️ 其 setup.py 仍钉死 numpy<=1.23.5 / librosa==0.9.2 / transformers==4.30.2
+#      （R0 实测这三个 pin 在现代栈下都可放开，入库时统一放宽）——editable 安装
+#      会尝试降级 numpy，**会破坏主包**。因此 R5 入库放宽 pin 之前不要用方式 2。
+#
+# 运行依赖（2026-09-21 实测：主 venv 现代栈下以下面版本直接可用）：
+#   torch 2.5.1+cu121 / torchaudio 2.5.1（cu121 索引，与主包 AI 栈一致，见 requirements/ai.txt）
+#   numpy>=2 / transformers 4.49 / librosa 0.10.2 / soundfile（主包已带）
+#   timm（弃用警告 timm.models.layers 可忽略，R5 入库时小修）
+#   huggingface_hub（首次运行自动下载 ~2.6GB 权重到 ~/.cache/huggingface，模型 haoheliu/audiosr_basic）
+#
+# 验证记录（R0/R5，RTX 4060）：
+#   8s@12kHz -> 48kHz DDIM50 = 42.2s；32s 分块冒烟（chunk 15 / overlap 2）时长精确对齐。
+# 整首歌（5:13）参考耗时：~45 分钟 GPU（25 个 15s 块，1.8s/it ~ 0.2s/it 视内容而定）。
+# 注意：输出为**单声道 48kHz**（上游把立体声混单声道，上游行为）。
