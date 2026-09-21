@@ -3,5 +3,6 @@
 from smartnotegen.ai.base import AIGenerator
 from smartnotegen.ai.musicgen import MusicGenAdapter
 from smartnotegen.ai.diffrhythm import DiffRhythmAdapter
+from smartnotegen.ai.basicpitch import BasicPitchAdapter
 
-__all__ = ["AIGenerator", "MusicGenAdapter", "DiffRhythmAdapter"]
+__all__ = ["AIGenerator", "MusicGenAdapter", "DiffRhythmAdapter", "BasicPitchAdapter"]

@@ -67,3 +67,10 @@ Unidecode==1.3.8
 phonemizer==3.3.0
 inflect==7.5.0
 py3langid
+
+# --- 可选：basic-pitch 复调转谱后端（#13 预留，未装不影响其它功能） ---
+# 内置 transcribe 只做单旋律；复调（和弦/多乐器）用本后端：
+#   smartnotegen transcribe in.wav --backend basic-pitch   （未装 -> 退出码 6）
+# 首次运行 ICModel() 自动下载约 100MB 权重到用户缓存。
+# 注意：**未在本机实装验证**（2026-09-20 记），装时请锁定当时最新版本并先跑一条音频确认。
+basic-pitch

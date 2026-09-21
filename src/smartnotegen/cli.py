@@ -8,6 +8,7 @@
     smartnotegen batch            （P1-3 完整实现）
     smartnotegen config init / config show
     smartnotegen play / doctor / diff / new
+    smartnotegen tempo / transcribe    （#13 音频测速 + WAV→MIDI 转谱）
     smartnotegen inspire init / add / list / show / rm / export
     smartnotegen errors           （P2-3 错误码表）
     smartnotegen ai musicgen / ai diffrhythm   （P1 骨架）
@@ -981,6 +982,105 @@ def diff_cmd(
 
     # 尝试从同目录 metadata.json 提取参数对比
     _diff_metadata(p1, p2)
+
+
+@app.command("tempo", help="估计音频 BPM（onset 自相关，numpy-only）")
+@_guard
+def tempo_cmd(
+    ctx: typer.Context,
+    wav: str = typer.Argument(..., help="输入音频路径"),
+    min_bpm: float = typer.Option(40.0, "--min-bpm", help="BPM 搜索下限"),
+    max_bpm: float = typer.Option(240.0, "--max-bpm", help="BPM 搜索上限"),
+    prior_bpm: float = typer.Option(
+        120.0,
+        "--prior-bpm",
+        help="节奏先验中心（化解半频歧义）；0 = 关闭先验（纯自相关）",
+    ),
+) -> None:
+    """估计音频的 BPM 与节拍相位（#13）。
+
+    置信度为归一化自相关峰强（0~1）：≥0.5 高 / ≥0.25 中 / 否则低（节拍感弱）。
+    """
+    from smartnotegen.analysis.tempo import estimate_bpm
+
+    est = estimate_bpm(wav, bpm_min=min_bpm, bpm_max=max_bpm, prior_bpm=prior_bpm)
+    label = "高" if est.confidence >= 0.5 else ("中" if est.confidence >= 0.25 else "低")
+    typer.echo(f"✅ BPM: {est.bpm:.1f}（置信度 {est.confidence:.2f}·{label}）")
+    typer.echo(
+        f"   时长 {est.duration:.1f}s / 第一拍 {est.beat_offset:.3f}s / "
+        f"onset 帧率 {est.onset_rate:.1f}Hz"
+    )
+
+
+@app.command("transcribe", help="WAV → MIDI 转谱（内置单旋律后端；可选 basic-pitch 复调）")
+@_guard
+def transcribe_cmd(
+    ctx: typer.Context,
+    wav: str = typer.Argument(..., help="输入音频路径"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="输出 .mid 路径"),
+    bpm: str = typer.Option("auto", "--bpm", help="'auto' 自动测速，或数值 (20-400)"),
+    grid: str = typer.Option("1/16", "--grid", help="量化网格：1/4 | 1/8 | 1/16 | 1/32 或拍数"),
+    backend: str = typer.Option(
+        "builtin", "--backend", help="builtin（单旋律，numpy-only）| basic-pitch（复调，可选依赖）"
+    ),
+    program: int = typer.Option(0, "--program", help="GM 乐器号 (0-127)"),
+    min_note_ms: float = typer.Option(60.0, "--min-note-ms", help="音符最短时长（毫秒）"),
+    merge_gap_ms: float = typer.Option(40.0, "--merge-gap-ms", help="同音高合并间隙（毫秒）"),
+) -> None:
+    """把音频转成 MIDI（#13）。
+
+    内置后端是「单旋律 / 主导声部」转谱：谐波 salience 峰值跟踪 + 按拍量化。
+    复调请 ``--backend basic-pitch``（需可选安装 basic-pitch，退出码 6 = 未装）。
+    """
+    source = Path(wav).expanduser().resolve()
+
+    if backend in ("basic-pitch", "basic_pitch", "bp"):
+        from smartnotegen.ai.basicpitch import BasicPitchAdapter
+
+        out_path = BasicPitchAdapter().transcribe(str(source), str(output) if output else None)
+        typer.echo(f"✅ 转谱完成（basic-pitch）: {out_path}")
+        return
+    if backend != "builtin":
+        raise ParameterError(f"未知转谱后端: {backend!r}（可用 builtin | basic-pitch）")
+
+    from smartnotegen.analysis.transcribe import TranscribeOptions, transcribe_wav
+
+    bpm_value: Optional[float] = None
+    if bpm.strip().lower() not in ("", "auto"):
+        try:
+            bpm_value = float(bpm)
+        except ValueError as exc:
+            raise ParameterError(
+                f"--bpm 需 'auto' 或数值 (20-400)，实为 {bpm!r}", code=1
+            ) from exc
+
+    options = TranscribeOptions(
+        bpm=bpm_value,
+        grid=grid,
+        program=program,
+        min_note_ms=min_note_ms,
+        merge_gap_ms=merge_gap_ms,
+    )
+    result = transcribe_wav(source, options)
+
+    target = output if output else source.with_suffix(".transcribed.mid")
+    from smartnotegen.analysis.transcribe import write_transcribed_midi
+
+    written = write_transcribed_midi(result, target)
+
+    lo, hi = result.pitch_range
+    typer.echo(
+        f"✅ 转谱完成: {result.note_count} 音 / 音域 {lo}-{hi}（MIDI）/ "
+        f"网格 {options.grid_beats:g} 拍"
+    )
+    if options.bpm is None:
+        label = "高" if result.confidence >= 0.5 else (
+            "中" if result.confidence >= 0.25 else "低"
+        )
+        typer.echo(
+            f"   自动测速 {result.detected_bpm:.1f} BPM（置信度 {result.confidence:.2f}·{label}）"
+        )
+    typer.echo(f"   输出: {written}")
 
 
 @app.command("new", help="交互式引导生成新音乐（新手指南）")
