@@ -1,4 +1,4 @@
-"""DiffRhythm 适配器（二期完整实现）。
+"""DiffRhythm 适配器（已完整实现）。
 
 - 完整歌曲草稿（带人声）生成：风格提示（+ 可选歌词）-> ≥60s 歌曲 WAV
 - 8GB 显存必需：`chunked=True` 默认（_patch_chunked 自动注入 infer 脚本，用户无需改脚本）

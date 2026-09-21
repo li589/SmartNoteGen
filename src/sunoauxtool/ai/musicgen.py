@@ -1,4 +1,4 @@
-"""MusicGen 适配器（二期完整实现）。
+"""MusicGen 适配器（已完整实现）。
 
 - melody conditioning：`audiocraft.models.MusicGen.generate_with_chroma`（输入旋律 WAV -> 伴奏 WAV）
 - 默认 `facebook/musicgen-medium`（1.5B，fp16，8GB 显存可跑）；`--model-size small` 降档

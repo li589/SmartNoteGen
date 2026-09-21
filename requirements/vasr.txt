@@ -1,6 +1,7 @@
 # --- AudioSR（VASR，R5 音质提升/超分）可装依赖 ----------------------------
-# 上游源码：src/versatile_audio_super_resolution（haoheliu fork @ d312fba，
-# 内嵌 .git 未清理前不入 git；定位走 AUDIOSR_DIR 环境变量或该默认路径）。
+# 上游源码：src/versatile_audio_super_resolution（haoheliu fork @ d312fba）。
+# 由 scripts/setup_vasr.py 克隆并剥离内嵌 .git（该目录 gitignored）；
+# 定位走 AUDIOSR_DIR 环境变量或该默认路径；补丁见 patches/vasr_super_resolution_long_audio.patch。
 # 适配器：sunoauxtool/ai/audiosr.py（延迟导入，未装不影响主包与 CI 零 torch 断言）。
 # CLI：sunoaux post enhance <wav>（未装依赖 -> 退出码 6）。
 #
@@ -24,8 +25,9 @@
 # 整首歌（5:13）参考耗时：~45 分钟 GPU（25 个 15s 块，1.8s/it ~ 0.2s/it 视内容而定）。
 # 注意：输出为**单声道 48kHz**（上游把立体声混单声道，上游行为）。
 #
-# 本地补丁记录（补丁文件在 gitignored 目录内，R5 入库时必须保留）：
-#   audiosr/pipeline.py::super_resolution_long_audio 打了 [SunoAuxTool patch R5]
+# 本地补丁（R9 起纳入版本控制，见 patches/vasr_super_resolution_long_audio.patch）：
+#   audiosr/pipeline.py::super_resolution_long_audio 的 [SunoAuxTool patch R5]
 #   —— 修复末块短于 overlap 时 fade 切片越界 + overlap-add 广播失败
 #   （《星星泪》5:13 末块 1.2s < 2s 触发；按 plen=min(实际输出长) 夹紧）。
-#   若重新克隆上游，需要重打此补丁，否则长音频末块 <2s 的文件必崩。
+#   重新克隆上游后运行 scripts/setup_vasr.py 会自动重打此补丁，
+#   长音频末块 <2s 的文件缺此补丁必崩。

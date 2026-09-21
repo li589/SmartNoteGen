@@ -1,0 +1,53 @@
+diff --git a/audiosr/pipeline.py b/audiosr/pipeline.py
+index 1705683..9979a7d 100755
+--- a/audiosr/pipeline.py
++++ b/audiosr/pipeline.py
+@@ -290,6 +290,13 @@ def super_resolution_long_audio(
+         # Trim padding from the last chunk if necessary
+         processed_chunk = processed_chunk[:, :, :current_chunk_len]
+ 
++        # [SunoAuxTool patch R5] 上游 bug：末块长度可能 (a) 短于 overlap_samples
++        # （末块 < 重叠时长时 fade 切片越界崩溃），(b) 与 current_chunk_len 差几个样本
++        # （生成帧数取整，overlap-add 广播失败）。统一按实际输出长度取 min 夹紧。
++        plen = processed_chunk.shape[2]  # 实际输出长度（<= current_chunk_len）
++        eff_in = min(overlap_samples, plen)
++        eff_out = min(overlap_samples, plen)
++
+         # *** NEW: Rescale the output chunk to match the original peak volume ***
+         processed_peak = torch.max(torch.abs(processed_chunk)) + 1e-8
+         # Apply the scaling factor
+@@ -298,22 +305,26 @@ def super_resolution_long_audio(
+         # 5. Apply cross-fading window to the overlap regions
+         # The very first chunk has no left overlap to fade in
+         if start_sample > 0:
+-            processed_chunk[:, :, :overlap_samples] *= fade_in
+-        
++            processed_chunk[:, :, :eff_in] *= fade_in[:eff_in]
++
+         # The very last chunk has no right overlap to fade out
+         if end_sample < total_samples:
+-            processed_chunk[:, :, -overlap_samples:] *= fade_out
++            processed_chunk[:, :, -eff_out:] *= fade_out[-eff_out:]
+ 
+         # 6. Add the processed chunk to the final waveform (Overlap-Add)
+-        final_waveform[:, :, start_sample:end_sample] += processed_chunk.to(final_waveform.device)
++        final_waveform[:, :, start_sample : start_sample + plen] += processed_chunk.to(
++            final_waveform.device
++        )
+ 
+         # Update the contribution map for normalization
+-        window_contribution = torch.ones(current_chunk_len)
++        window_contribution = torch.ones(plen)
+         if start_sample > 0:
+-            window_contribution[:overlap_samples] = fade_in
++            window_contribution[:eff_in] = fade_in[:eff_in]
+         if end_sample < total_samples:
+-            window_contribution[-overlap_samples:] = fade_out
+-        overlap_contribution_map[:, :, start_sample:end_sample] += window_contribution.to(overlap_contribution_map.device)
++            window_contribution[-eff_out:] = fade_out[-eff_out:]
++        overlap_contribution_map[:, :, start_sample : start_sample + plen] += (
++            window_contribution.to(overlap_contribution_map.device)
++        )
+ 
+         # Clean up memory
+         del batch, processed_chunk

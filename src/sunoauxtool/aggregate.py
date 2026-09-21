@@ -10,7 +10,7 @@
     sunoaux pre melody / midi / score / render / transcribe     （前期：创作）
     sunoaux post probe / convert / fetch                        （后期：取回与转码）
     sunoaux post video render / multi                           （后期：音乐视频）
-    sunoaux post dsp        （R6 交付占位）
+    sunoaux post dsp        （R6 已交付：DSP 算子链）
     sunoaux post enhance    （AudioSR 音质提升，R5；依赖可选装）
 
 映射表（新 -> 旧）：
@@ -133,11 +133,6 @@ def fetch_cmd(
     typer.echo(f"✅ 取回 {len(files)} 个文件（source={source}）:")
     for f in files:
         typer.echo(f"   {f.path}")
-
-
-def _not_implemented(name: str, phase: str) -> None:
-    typer.echo(f"post {name} 尚未实现（计划于 {phase} 交付）。", err=True)
-    raise typer.Exit(code=1)
 
 
 @post_app.command(

@@ -11,7 +11,7 @@
     sunoauxtool tempo / transcribe    （#13 音频测速 + WAV→MIDI 转谱）
     sunoauxtool inspire init / add / list / show / rm / export
     sunoauxtool errors           （P2-3 错误码表）
-    sunoauxtool ai musicgen / ai diffrhythm   （P1 骨架）
+    sunoauxtool ai musicgen / ai diffrhythm   （AI 适配器，已完整实现）
 
 错误处理：统一捕获 SmartNoteGenError -> 映射退出码 + 友好提示（--debug 才打印堆栈）。
 
@@ -1334,7 +1334,7 @@ def errors_cmd() -> None:
 
 
 # ---------------------------------------------------------------------------
-# ai（P1 骨架；二期完整实现）
+# ai（AI 适配器：musicgen / audio-sr，已完整实现）
 # ---------------------------------------------------------------------------
 
 @ai_app.command("musicgen", help="MusicGen 适配器（P1）：旋律 WAV -> 伴奏 WAV")

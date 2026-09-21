@@ -4,7 +4,7 @@
 - 注册结构：pre/post 组、子命令齐全、--version
 - 薄转发正确性：pre *（→ sunoauxtool 既有命令）与 post *（→ downloadhelper /
   videomaker）走真实命令函数，错误码原样透传
-- 占位命令：post dsp（R6）/ post enhance（R5）干净失败
+- 后期命令：post dsp（R6 已交付：DSP 算子链）/ post enhance（R5 已交付：AudioSR 音质提升）
 
 转发实现是「二次注册既有命令函数」——因此 mock 打在原模块
 （如 ``sunoauxtool.download.cli.decode_fmp4``）依然生效：函数的
@@ -253,7 +253,7 @@ def test_post_video_multi_help():
 
 
 # ---------------------------------------------------------------------------
-# 占位命令：dsp（R6）/ enhance（R5）
+# 后期命令：dsp（R6 已交付）/ enhance（R5 已交付）
 # ---------------------------------------------------------------------------
 
 
