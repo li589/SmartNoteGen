@@ -23,3 +23,9 @@
 #   8s@12kHz -> 48kHz DDIM50 = 42.2s；32s 分块冒烟（chunk 15 / overlap 2）时长精确对齐。
 # 整首歌（5:13）参考耗时：~45 分钟 GPU（25 个 15s 块，1.8s/it ~ 0.2s/it 视内容而定）。
 # 注意：输出为**单声道 48kHz**（上游把立体声混单声道，上游行为）。
+#
+# 本地补丁记录（补丁文件在 gitignored 目录内，R5 入库时必须保留）：
+#   audiosr/pipeline.py::super_resolution_long_audio 打了 [SunoAuxTool patch R5]
+#   —— 修复末块短于 overlap 时 fade 切片越界 + overlap-add 广播失败
+#   （《星星泪》5:13 末块 1.2s < 2s 触发；按 plen=min(实际输出长) 夹紧）。
+#   若重新克隆上游，需要重打此补丁，否则长音频末块 <2s 的文件必崩。
