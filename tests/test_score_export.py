@@ -12,7 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from smartnotegen.exceptions import ParameterError
+from smartnotegen.exceptions import InputFileError, ParameterError
+from smartnotegen.models.midi import MidiDocument
+from smartnotegen.models.notes import Note, NoteSequence
 from smartnotegen.score import Score, ScoreMeasure, ScoreNote, ScoreTrack
 from smartnotegen.score_export import (
     FORMAT_SUFFIX,
@@ -21,6 +23,7 @@ from smartnotegen.score_export import (
     export_score,
     format_help,
     normalize_formats,
+    score_from_midi,
     score_from_sequence,
     score_jianpu_svg_text,
     score_svg_text,
@@ -425,3 +428,60 @@ def test_drum_sequence_track_is_exportable():
     validate_musicxml(__import__(
         "smartnotegen.score", fromlist=["render_musicxml"]
     ).render_musicxml(score))
+
+
+# ---------------------------------------------------------------------------
+# score_from_midi：参数错误归一化（score --key 缺陷的回归守卫）
+# ---------------------------------------------------------------------------
+
+
+def _midi_file(tmp_path: Path, name: str = "in.mid") -> Path:
+    """最小单轨 .mid（score_from_midi 的输入，两小节四分音符）。"""
+    seq = NoteSequence(bpm=120, key="C major", time_signature="4/4", bars=2)
+    seq.add_track(
+        "melody", 0, 0,
+        [Note(pitch=72, start=0.0, duration=1.0), Note(pitch=74, start=1.0, duration=1.0)],
+    )
+    path = tmp_path / name
+    MidiDocument.from_sequence(seq).write(path)
+    return path
+
+
+def test_score_from_midi_bad_key_is_parameter_error(tmp_path: Path):
+    """非法调式必须是 ParameterError（错误码 1），不得冒成裸 ValueError。"""
+    path = _midi_file(tmp_path)
+    with pytest.raises(ParameterError) as ei:
+        score_from_midi(path, key="H# weird")
+    assert "非法调式" in str(ei.value)
+    assert ei.value.code == 1
+
+
+def test_score_from_midi_bad_time_signature_is_parameter_error(tmp_path: Path):
+    """非法拍号同样归一化为 ParameterError（与 key 同一契约）。"""
+    path = _midi_file(tmp_path)
+    with pytest.raises(ParameterError) as ei:
+        score_from_midi(path, time_signature="abc")
+    assert "非法拍号" in str(ei.value)
+    assert ei.value.code == 1
+
+
+def test_score_from_midi_missing_file_passes_through(tmp_path: Path):
+    """InputFileError 不是 ValueError 子类，必须原样透传（错误码 3，不被误包装）。"""
+    with pytest.raises(InputFileError) as ei:
+        score_from_midi(tmp_path / "nope.mid")
+    assert ei.value.code == 3
+
+
+def test_score_from_midi_defaults(tmp_path: Path):
+    """key / time_signature 缺省时按 C major / 4/4 记谱，正常出谱。"""
+    path = _midi_file(tmp_path)
+    score = score_from_midi(path)
+    assert score.key == "C major"
+    assert score.time_signature == "4/4"
+
+
+def test_score_from_midi_key_override_applied(tmp_path: Path):
+    """合法 key 覆盖生效（归一化后的 'a minor' 写回 score.key）。"""
+    path = _midi_file(tmp_path)
+    score = score_from_midi(path, key="Am")
+    assert score.key == "A minor"

@@ -1110,12 +1110,12 @@ def score_cmd(
     注：``--key`` 只影响调号/拼写，不改变音符本身；MIDI 文件里没有调式信息，
     默认按 C 大调记谱（小调素材请显式传 ``--key 'a minor'``）。
     """
-    from smartnotegen.score import Score
     from smartnotegen.score_export import (
         SCORE_FORMATS,
         THEMES,
         ScoreExportOptions,
         export_score,
+        score_from_midi,
     )
 
     if list_formats:
@@ -1131,12 +1131,14 @@ def score_cmd(
         raise InputFileError(f"MIDI 文件不存在: {source}")
 
     clefs = _parse_clef_overrides(clef)
-    score = Score.from_midi(
+    # 经 score_export 统一入口：非法 --key / --time-signature 归一化为 ParameterError，
+    # 与 generate/pipeline 的 --score-key 路径同一错误契约（不再冒成「意外错误」）。
+    score = score_from_midi(
         source,
         title=title,
         composer=composer or "",
-        key=key or "C major",
-        time_signature=time_signature or "4/4",
+        key=key,
+        time_signature=time_signature,
         bars=bars,
         clefs=clefs or None,
     )

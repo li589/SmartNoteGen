@@ -175,6 +175,7 @@ score/
 | 情形 | 表现 |
 |---|---|
 | 未知格式名 / 非法主题 | `错误 [1]`（`ParameterError`），提示可用取值 |
+| 非法 `--key` 调式 / `--time-signature` 拍号 | `错误 [1]`（`ParameterError`），经 `score_export.score_from_midi` 统一归一化 |
 | 非法 `--clef` 写法（缺 `=`、谱号名非法、重复指定谱表） | `错误 [1]`（`ParameterError`） |
 | 请求位图但未装 Pillow | 转成带安装指引的 `ParameterError`，**不冒成意外错误**：<br>`…需要 Pillow。请 pip install Pillow，或改用 --format svg` |
 | 页面宽度 / 谱线间距 / 超采样倍数非正 | 构造选项时即报错（`ParameterError`），避免写了一半才失败 |

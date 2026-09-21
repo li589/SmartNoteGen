@@ -404,3 +404,31 @@ def test_pipeline_no_preview_keeps_dsp_overrides(tmp_path: Path, monkeypatch):
     assert cfg.preview.enabled is False
     assert cfg.dsp.fade_in_ms == 120
     assert cfg.dsp.eq is True
+
+
+# ---------------------------------------------------------------------------
+# score 子命令：--key / --time-signature 错误归一化（回归守卫）
+# ---------------------------------------------------------------------------
+
+
+def test_score_rejects_bad_key_as_parameter_error(midi_file):
+    """非法 --key 必须是错误码 1 的参数错误，而非「意外错误」。
+
+    回归背景：score_cmd 曾直接调 ``Score.from_midi``，key 解析的裸 ``ValueError``
+    冒成「意外错误」；现统一走 ``score_export.score_from_midi``，
+    与 ``generate --score`` / ``pipeline --score`` 的 ``--score-key`` 同一契约。
+    """
+    result = runner.invoke(app, ["score", str(midi_file), "--key", "H# weird"])
+    assert result.exit_code == 1, result.output
+    assert "非法调式" in result.output
+    assert "意外错误" not in result.output
+
+
+def test_score_rejects_bad_time_signature_as_parameter_error(midi_file):
+    """非法 --time-signature 同样归一化为参数错误。"""
+    result = runner.invoke(
+        app, ["score", str(midi_file), "--time-signature", "abc"]
+    )
+    assert result.exit_code == 1, result.output
+    assert "非法拍号" in result.output
+    assert "意外错误" not in result.output

@@ -40,7 +40,7 @@ from smartnotegen.score import (
     write_png,
     write_svg,
 )
-from smartnotegen.score.theory import normalize_key
+from smartnotegen.score.theory import normalize_key, parse_time_signature
 
 #: 规范格式名 -> 中文说明（也用作 ``score --help`` 的格式清单）
 SCORE_FORMATS: Dict[str, str] = {
@@ -281,6 +281,69 @@ def score_from_sequence(seq, *, title: str = "Untitled", key: Optional[str] = No
             raise ParameterError(f"非法调式: {key!r}（{exc}）") from exc
         score.key = f"{tonic} {mode}"
     return score
+
+
+def score_from_midi(
+    path: str | Path,
+    *,
+    title: Optional[str] = None,
+    composer: str = "",
+    key: Optional[str] = None,
+    time_signature: Optional[str] = None,
+    bars: Optional[int] = None,
+    clefs: Optional[Dict[str, str]] = None,
+) -> Score:
+    """从 ``.mid`` 文件构建 ``Score``，把调式/拍号解析错误统一为 ``ParameterError``。
+
+    为什么需要这层包装：``Score.from_midi`` 在 ``_assemble`` 里解析 ``key`` 与
+    ``time_signature``，非法写法抛的是裸 ``ValueError``，会冒成 CLI 的「意外错误」。
+    与 ``score_from_sequence`` 对称——``score`` 子命令应经由本函数取谱，
+    与另两条路径（``generate --score`` / ``pipeline --score``）保持同一错误契约。
+
+    采用**前置校验**而非 ``except ValueError`` 包住整个调用：只把「已知的参数
+    解析点」归一化为参数错误；``from_midi`` 内部其他 ``ValueError`` 仍会原样冒出
+    （那是真缺陷，不该被伪装成用户输入问题）。``InputFileError``（文件缺失，
+    错误码 3）不是 ``ValueError`` 子类，自然透传。
+
+    Args:
+        path: ``.mid`` 路径。
+        title: 标题；None 时取文件名主干。
+        composer: 作曲者署名。
+        key: 记谱调式；None 按 C 大调记谱（MIDI 文件里没有调式信息）。
+        time_signature: 拍号；None 按 ``"4/4"``。
+        bars: 小节数；None 按最后一个音推算。
+        clefs: ``{轨道名: "treble"|"bass"}`` 谱号覆盖。
+
+    Returns:
+        ``Score`` 实例。
+
+    Raises:
+        ParameterError: 调式 / 拍号无法解析。
+        InputFileError: 文件缺失或无法解析（原样透传）。
+    """
+    normalized_key = "C major"
+    if key:
+        try:
+            tonic, mode = normalize_key(key)
+        except ValueError as exc:
+            raise ParameterError(f"非法调式: {key!r}（{exc}）") from exc
+        normalized_key = f"{tonic} {mode}"
+
+    ts = time_signature or "4/4"
+    try:
+        parse_time_signature(ts)
+    except ValueError as exc:
+        raise ParameterError(f"非法拍号: {ts!r}（{exc}）") from exc
+
+    return Score.from_midi(
+        path,
+        title=title,
+        composer=composer,
+        key=normalized_key,
+        time_signature=ts,
+        bars=bars,
+        clefs=clefs,
+    )
 
 
 def score_jianpu_svg_text(score: Score, options: Optional[ScoreExportOptions] = None) -> str:
