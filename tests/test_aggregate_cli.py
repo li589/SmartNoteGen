@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import re
+
 import numpy as np
 import soundfile as sf
 from typer.testing import CliRunner
@@ -226,10 +228,7 @@ def test_post_fetch_empty_directory(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-import re as _re
-
-_esc27 = chr(27)
-_ANSI_RE = _re.compile(_esc27 + r"\[[0-9;]*m")
+_ANSI_RE = re.compile(chr(27) + r"\[[0-9;]*m")
 
 
 def test_post_video_render_help():
