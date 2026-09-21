@@ -28,6 +28,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Optional
 
 import typer
 
@@ -36,7 +37,7 @@ from sunoauxtool import cli as core_cli
 from sunoauxtool.ai.audiosr import AudioSRAdapter
 from sunoauxtool.commands.helpers import _guard
 from sunoauxtool.download import cli as download_cli
-from sunoauxtool.exceptions import InputFileError
+from sunoauxtool.exceptions import InputFileError, ParameterError
 from sunoauxtool.video import cli as video_cli
 
 app = typer.Typer(
@@ -89,9 +90,49 @@ post_app.command("probe", help="(= downloadhelper probe) 取证判定：明文 /
 post_app.command("convert", help="(= downloadhelper decode) fMP4 -> Opus/MP3 转码")(
     download_cli.decode
 )
-post_app.command("fetch", help="(= downloadhelper batch) 批量扫描目录取回音频")(
-    download_cli.batch
+@post_app.command(
+    "fetch",
+    help="取回音频（R7）：catcatch=猫抓缓存扫描转码（默认）；suno-api/haimeng/tianyin=API 源",
 )
+@_guard
+def fetch_cmd(
+    query: str = typer.Argument(..., help="catcatch=缓存目录；API 源=歌曲/任务 ID"),
+    source: str = typer.Option(
+        "catcatch", "--source", "-s", help="源：catcatch | suno-api | haimeng | tianyin"
+    ),
+    out: Path = typer.Option(None, "-o", "--out", help="输出目录（catcatch 默认原目录；API 默认 ./fetched/<source>）"),
+    fmt: str = typer.Option("both", "--fmt", help="[catcatch] 输出格式: opus | mp3 | both"),
+    bitrate: str = typer.Option("192k", "--bitrate", help="[catcatch] MP3 码率"),
+    ffmpeg: Optional[str] = typer.Option(None, "--ffmpeg-path", help="[catcatch] ffmpeg 绝对路径"),
+) -> None:
+    """统一取回入口（R7）：错误码 25=凭证缺失、26=请求失败；猫抓沿用 20-24。"""
+    if source == "catcatch":
+        # 直通既有 batch 实现（能力零复制）
+        download_cli.batch(
+            directory=Path(query),
+            out=out,
+            fmt=fmt,
+            bitrate=bitrate,
+            ffmpeg=ffmpeg,
+        )
+        return
+
+    from sunoauxtool.download.sources.base import list_sources
+    from sunoauxtool.download.sources.catcatch import CatCatchSource
+
+    valid = {s.name: s for s in list_sources()}
+    if source not in valid:
+        known = ", ".join(sorted(valid))
+        raise ParameterError(f"未知下载源: {source}（可用: {known}）", code=1)
+
+    adapter = valid[source]
+    if isinstance(adapter, CatCatchSource):
+        adapter.fmt, adapter.bitrate, adapter.ffmpeg = fmt, bitrate, ffmpeg
+    target_out = out or Path("fetched") / source
+    files = adapter.fetch(query, target_out)
+    typer.echo(f"✅ 取回 {len(files)} 个文件（source={source}）:")
+    for f in files:
+        typer.echo(f"   {f.path}")
 
 
 def _not_implemented(name: str, phase: str) -> None:
@@ -99,10 +140,44 @@ def _not_implemented(name: str, phase: str) -> None:
     raise typer.Exit(code=1)
 
 
-@post_app.command("dsp", help="[R6 交付] DSP 操作串（norm/fade/trim...）——尚未接线")
-def dsp_stub() -> None:
-    """R6（DSP 功能包）交付占位。"""
-    _not_implemented("dsp", "R6")
+@post_app.command(
+    "dsp",
+    help="DSP 算子链（R6）：norm/loudnorm/fade-in/fade-out/trim/resample/lowcut/compress/concat",
+)
+@_guard
+def dsp_cmd(
+    audio: str = typer.Argument(..., help="输入 WAV 路径"),
+    ops_spec: str = typer.Option(
+        ...,
+        "--ops",
+        help='算子串（逗号分隔），如 "norm -1, fade-in 0.5, trim 10-25, resample 32000"',
+    ),
+    output: Path = typer.Option(None, "-o", "--output", help="输出 WAV（默认 <输入>_dsp.wav）"),
+    bit_depth: int = typer.Option(16, "--bit-depth", help="输出位深：16 | 24"),
+) -> None:
+    """DSP 算子链（R6）：错误码 15=处理失败 / 16=参数错误。"""
+    from sunoauxtool.dsp.ops import OPS, apply_ops, parse_ops
+    from sunoauxtool.export import audio as audio_ops
+
+    src = Path(audio)
+    if not src.is_file():
+        raise InputFileError(f"输入音频不存在: {src}", code=3)
+    if bit_depth not in (16, 24):
+        raise ParameterError(f"bit_depth 只能是 16 或 24: {bit_depth}", code=16)
+
+    ops = parse_ops(ops_spec)
+    unknown = [op.name for op in ops if op.name not in OPS]
+    if unknown:
+        raise ParameterError(
+            f"未知算子: {', '.join(unknown)}（可用: {', '.join(sorted(OPS))}）", code=16
+        )
+
+    wave, sr = audio_ops.read_wav(src)
+    wave, sr = apply_ops(wave, sr, ops, base_dir=src.parent)
+
+    out = output or src.with_name(src.stem + "_dsp.wav")
+    written = audio_ops.write_wav(out, wave, sr, bit_depth=bit_depth)
+    typer.echo(f"✅ DSP 完成: {written}（{wave.shape[0] / sr:.2f}s @ {sr}Hz, {bit_depth}bit）")
 
 
 @post_app.command(

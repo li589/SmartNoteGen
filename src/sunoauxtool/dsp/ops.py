@@ -1,0 +1,306 @@
+"""DSP 算子框架（R6）：管道式 ops 串解析 + 顺序执行。
+
+设计（继承重构计划 R6 决策）：
+- **numpy/scipy 为主**（可控、可单测），ffmpeg 只做兜底不在本层；
+- 算子串语法：逗号分隔，``name`` 或 ``name arg`` 或 ``name key=value``，如::
+
+    "norm -1, fade-in 0.5, trim 10-25, loudnorm -16, lowcut 80, resample 32000,
+     concat other.wav xf 0.5, compress 3 -14"
+
+- 每个算子是一个纯函数 ``(audio, sr, args) -> (audio, sr)``；注册表驱动，
+  新算子加一个函数 + 一行注册即可；
+- 错误码分段：解析/参数非法 -> DspParamError(16)；运行失败 -> DspError(15)。
+- 既有 ``DspProcessor``（pipeline 内部链）不动，本模块是独立通用层。
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Callable, Dict, List, Optional, Tuple
+
+import numpy as np
+
+from sunoauxtool.dsp import filters
+from sunoauxtool.exceptions import DspError, DspParamError
+from sunoauxtool.export import audio as audio_ops
+
+#: 算子函数签名：fn(audio, sr, args) -> (audio, sr)
+OpFunc = Callable[[np.ndarray, int, Dict[str, str]], Tuple[np.ndarray, int]]
+
+
+# ---------------------------------------------------------------------------
+# ops 串解析
+# ---------------------------------------------------------------------------
+
+_TOKEN_RE = re.compile(r"\s+")
+
+
+@dataclass
+class DspOp:
+    """单个算子调用：名称 + 参数字典（位置参数按序落入 _0/_1/...）。"""
+
+    name: str
+    args: Dict[str, str] = field(default_factory=dict)
+
+    def arg(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        return self.args.get(key, default)
+
+
+def parse_ops(spec: str) -> List[DspOp]:
+    """解析 ops 串为算子列表。
+
+    语法：逗号分隔的 ``name [token...]``；token 形如 ``key=value`` 落入字典，
+    否则按序落入 ``_0`` ``_1`` ...（第一个 token 通常是主参数，也写入 ``arg``）。
+
+    Raises:
+        DspParamError: 空串 / token 语法非法。
+    """
+    ops: List[DspOp] = []
+    for raw in spec.split(","):
+        chunk = raw.strip()
+        if not chunk:
+            continue
+        tokens = _TOKEN_RE.split(chunk)
+        name = tokens[0]
+        if not re.fullmatch(r"[a-z][a-z0-9_-]*", name):
+            raise DspParamError(f"非法算子名: {name!r}", code=16)
+        args: Dict[str, str] = {}
+        positional: List[str] = []
+        for tok in tokens[1:]:
+            if "=" in tok:
+                k, _, v = tok.partition("=")
+                if not k or not v:
+                    raise DspParamError(f"算子 {name} 的参数 {tok!r} 非法（key=value）", code=16)
+                args[k] = v
+            else:
+                positional.append(tok)
+        for i, p in enumerate(positional):
+            args[f"_{i}"] = p
+        if positional:
+            args.setdefault("arg", positional[0])
+        ops.append(DspOp(name=name, args=args))
+    if not ops:
+        raise DspParamError("ops 串为空", code=16)
+    return ops
+
+
+# ---------------------------------------------------------------------------
+# 算子实现（纯函数；audio: (N,) 或 (N, ch) float32）
+# ---------------------------------------------------------------------------
+
+
+def op_norm(audio: np.ndarray, sr: int, args: Dict[str, str]) -> Tuple[np.ndarray, int]:
+    """峰值归一化到目标 dBFS（默认 -1，可放大可衰减）。``norm [-1]``"""
+    db = float(args.get("arg", "-1"))
+    if db > 0:
+        raise DspParamError("norm 目标 dBFS 必须 <= 0", code=16)
+    target = float(10 ** (db / 20.0))
+    max_abs = float(np.max(np.abs(audio))) if audio.size else 0.0
+    if max_abs <= 1e-9:  # 静音不缩放（避免除零）
+        return audio, sr
+    return (audio * (target / max_abs)).astype(np.float32), sr
+
+
+def op_loudnorm(audio: np.ndarray, sr: int, args: Dict[str, str]) -> Tuple[np.ndarray, int]:
+    """EBU R128 简化版响度归一：K 加权 + 门控积分响度 -> 目标 LUFS（默认 -16）。
+
+    K 加权两阶段：stage1 高架 +4dB（bilinear 变换系数随 sr 伸缩，ITU-R BS.1770 口径），
+    stage2 RLB 高通（38Hz 二阶 Butterworth）。分块 400ms / 步进 100ms，
+    绝对门 -70 LUFS + 相对门 -10 LU。纯 numpy/scipy 实现。
+    """
+    target = float(args.get("arg", "-16"))
+    if target > 0:
+        raise DspParamError("loudnorm 目标 LUFS 必须 <= 0", code=16)
+    from sunoauxtool.dsp.loudness import integrated_lufs
+
+    try:
+        lufs = integrated_lufs(audio, sr)
+    except ValueError as exc:  # 静音等无法测响度的输入
+        raise DspError(f"loudnorm 无法测量响度: {exc}", code=15) from exc
+    gain_db = target - lufs
+    return (audio * float(10 ** (gain_db / 20.0))).astype(np.float32), sr
+
+
+def _fit_ramp(ramp: np.ndarray, audio: np.ndarray) -> np.ndarray:
+    """把一维 ramp 适配到音频形状：多声道 (N, ch) 广播为 (N, 1)。"""
+    if audio.ndim == 2:
+        return ramp.astype(np.float32)[:, np.newaxis]
+    return ramp.astype(np.float32)
+
+
+def op_fade_in(audio: np.ndarray, sr: int, args: Dict[str, str]) -> Tuple[np.ndarray, int]:
+    """淡入：``fade-in 0.5``（秒，余弦曲线）。"""
+    sec = float(args.get("arg", "0"))
+    if sec < 0:
+        raise DspParamError("fade-in 秒数须 >= 0", code=16)
+    n = int(sec * sr)
+    if n <= 0:
+        return audio, sr
+    out = np.array(audio, dtype=np.float32, copy=True)
+    if n > out.shape[0]:
+        raise DspParamError(f"fade-in {sec}s 超出音频长度", code=16)
+    ramp = 0.5 - 0.5 * np.cos(np.linspace(0.0, np.pi, n, endpoint=False))
+    out[:n] *= _fit_ramp(ramp, out)
+    return out, sr
+
+
+def op_fade_out(audio: np.ndarray, sr: int, args: Dict[str, str]) -> Tuple[np.ndarray, int]:
+    """淡出：``fade-out 0.5``（秒，余弦曲线）。"""
+    sec = float(args.get("arg", "0"))
+    if sec < 0:
+        raise DspParamError("fade-out 秒数须 >= 0", code=16)
+    n = int(sec * sr)
+    if n <= 0:
+        return audio, sr
+    out = np.array(audio, dtype=np.float32, copy=True)
+    if n > out.shape[0]:
+        raise DspParamError(f"fade-out {sec}s 超出音频长度", code=16)
+    ramp = 0.5 + 0.5 * np.cos(np.linspace(0.0, np.pi, n, endpoint=False))
+    out[-n:] *= _fit_ramp(ramp, out)
+    return out, sr
+
+
+def op_trim(audio: np.ndarray, sr: int, args: Dict[str, str]) -> Tuple[np.ndarray, int]:
+    """裁剪：``trim 10-25``（秒闭开区间 [start, end)）。"""
+    rng = args.get("arg", "")
+    m = re.fullmatch(r"([0-9.]+)-([0-9.]+)", rng)
+    if not m:
+        raise DspParamError(f"trim 参数须形如 'START-END'（秒）: {rng!r}", code=16)
+    start_s, end_s = float(m.group(1)), float(m.group(2))
+    total = audio.shape[0] / sr
+    if start_s < 0 or end_s <= start_s or start_s >= total:
+        raise DspParamError(
+            f"trim 区间非法: [{start_s}, {end_s})（音频 {total:.2f}s）", code=16
+        )
+    a = int(start_s * sr)
+    b = min(int(end_s * sr), audio.shape[0])
+    return np.array(audio[a:b], dtype=np.float32, copy=True), sr
+
+
+def op_resample(audio: np.ndarray, sr: int, args: Dict[str, str]) -> Tuple[np.ndarray, int]:
+    """重采样：``resample 32000``（polyphase，抗混叠）。"""
+    try:
+        target = int(float(args.get("arg", "")))
+    except ValueError as exc:
+        raise DspParamError(f"resample 目标采样率非法: {args.get('arg')!r}", code=16) from exc
+    if target <= 0:
+        raise DspParamError(f"resample 目标采样率须 > 0: {target}", code=16)
+    if target == sr:
+        return audio, sr
+    from math import gcd
+
+    from scipy.signal import resample_poly
+
+    g = gcd(target, sr)
+    up, down = target // g, sr // g
+    if audio.ndim == 2:
+        out = resample_poly(audio, up, down, axis=0).astype(np.float32)
+    else:
+        out = resample_poly(audio, up, down).astype(np.float32)
+    return out, target
+
+
+def op_lowcut(audio: np.ndarray, sr: int, args: Dict[str, str]) -> Tuple[np.ndarray, int]:
+    """低频切（EQ）：``lowcut 80``（Hz，复用既有高通滤波器）。"""
+    hz = float(args.get("arg", "30"))
+    if hz <= 0:
+        raise DspParamError(f"lowcut 截止频率须 > 0: {hz}", code=16)
+    return filters.highpass(audio, sr, hz), sr
+
+
+def op_compress(audio: np.ndarray, sr: int, args: Dict[str, str]) -> Tuple[np.ndarray, int]:
+    """压缩：``compress 3 [-14]``（ratio须>=1；threshold dBFS 默认 -12）。"""
+    ratio = float(args.get("arg", "2"))
+    thr = float(args.get("_1", "-12"))
+    if ratio < 1:
+        raise DspParamError(f"compress ratio 须 >= 1: {ratio}", code=16)
+    return filters.compressor(audio, ratio, thr), sr
+
+
+def op_concat(
+    audio: np.ndarray, sr: int, args: Dict[str, str], _ctx: Optional[dict] = None
+) -> Tuple[np.ndarray, int]:
+    """拼接：``concat other.wav [xf 0.5]``（可选交叉淡化秒数）。
+
+    交叉淡化：前段尾部与后段头部按余弦等功率重叠；采样率不一致时后段先重采样。
+    相对路径按 ``_base_dir``（由 apply_ops 注入，通常为输入文件目录）解析。
+    """
+    path = args.get("arg", "")
+    if not path:
+        raise DspParamError("concat 缺少文件参数", code=16)
+    xf = float(args.get("xf", "0"))
+    if xf < 0:
+        raise DspParamError(f"concat xf 须 >= 0: {xf}", code=16)
+
+    p = Path(path)
+    if not p.is_absolute() and args.get("_base_dir"):
+        p = Path(args["_base_dir"]) / p
+    # read_wav 缺文件抛 InputFileError(3)——concat 源缺失属于输入错误
+    other, other_sr = audio_ops.read_wav(p)
+    if other_sr != sr:
+        other, _ = op_resample(other, other_sr, {"arg": str(sr)})
+
+    xf_n = int(xf * sr)
+    if xf_n > 0:
+        if xf_n > audio.shape[0] or xf_n > other.shape[0]:
+            raise DspParamError(
+                f"concat 交叉淡化 {xf}s 超出任一侧音频长度", code=16
+            )
+        fade = 0.5 - 0.5 * np.cos(np.linspace(0.0, np.pi, xf_n, endpoint=False))
+        fade = _fit_ramp(fade, audio)
+        tail = audio[-xf_n:] * (1.0 - fade)
+        head = other[:xf_n] * fade
+        merged = tail + head
+        return (
+            np.concatenate([audio[:-xf_n], merged, other[xf_n:]]).astype(np.float32),
+            sr,
+        )
+    return np.concatenate([audio, other]).astype(np.float32), sr
+
+
+# ---------------------------------------------------------------------------
+# 注册表 + 执行器
+# ---------------------------------------------------------------------------
+
+OPS: Dict[str, OpFunc] = {
+    "norm": op_norm,
+    "loudnorm": op_loudnorm,
+    "fade-in": op_fade_in,
+    "fade-out": op_fade_out,
+    "trim": op_trim,
+    "resample": op_resample,
+    "lowcut": op_lowcut,
+    "compress": op_compress,
+    "concat": op_concat,
+}
+
+
+def apply_ops(
+    audio: np.ndarray,
+    sr: int,
+    ops: List[DspOp],
+    base_dir: Optional[Path] = None,
+) -> Tuple[np.ndarray, int]:
+    """按序执行算子链；未知算子抛 DspParamError(16)。
+
+    Args:
+        base_dir: ``concat`` 相对路径的解析基准（CLI 下为输入文件所在目录）。
+    """
+    out_audio, out_sr = audio, sr
+    for op in ops:
+        fn = OPS.get(op.name)
+        if fn is None:
+            raise DspParamError(
+                f"未知算子: {op.name}（可用: {', '.join(sorted(OPS))}）", code=16
+            )
+        op_args = dict(op.args)
+        op_args.setdefault("_base_dir", str(base_dir) if base_dir else "")
+        try:
+            out_audio, out_sr = fn(out_audio, out_sr, op_args)
+        except (DspParamError, DspError):
+            raise
+        except Exception as exc:
+            raise DspError(f"算子 {op.name} 执行失败: {exc}", code=15) from exc
+    return out_audio, out_sr

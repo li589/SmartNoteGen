@@ -192,3 +192,37 @@ python -m pytest --cov --cov-report=term-missing   # 覆盖率门槛 95%（实�
 
 CI 中该子包由独立步骤安装并运行（主包 `packages.find` 已排除它，
 其测试不在根 `testpaths` 内，不单独跑就完全不会被收集）。
+
+---
+
+## 下载源统一接口（R7，`sunoaux post fetch`）
+
+```
+sunoaux post fetch <query> [--source catcatch|suno-api|haimeng|tianyin] [-o 输出目录]
+```
+
+| 源 | query 含义 | 状态 |
+|---|---|---|
+| `catcatch`（默认） | 猫抓缓存目录路径 | ✅ 全量可用（= `downloadhelper batch` 直通，`--fmt/--bitrate/--ffmpeg-path` 原样透传） |
+| `suno-api` | 歌曲/任务 ID | 留位：配置驱动，拿到合法 API 后填配置即用 |
+| `haimeng` | 歌曲/任务 ID | 留位（同上） |
+| `tianyin` | 歌曲/任务 ID | 留位（同上） |
+
+### API 源接入契约（mock 契约测试已锁定）
+
+1. 配置文件（gitignored，查找顺序后者覆盖前者）：`config/sources.toml` → `~/.sunoauxtool/sources.toml`
+2. 配置格式：
+
+   ```toml
+   [sources."suno-api"]
+   endpoint = "https://你的端点/v1/songs"   # 必填
+   token = "..."                            # 可选，Bearer 头
+   ```
+
+3. 请求：`GET {endpoint}?id={query}`，头 `Authorization: Bearer {token}`；
+4. 响应 JSON：`{"files": [{"url": "...", "name": "..."}, ...]}`；
+5. 文件逐个下载到输出目录（`name` 缺省从 URL 推断）。
+
+错误码：**25** = 凭证/端点缺失、**26** = 请求或响应解析失败；猫抓路径沿用 20-24。
+**本仓库不做客户端逆向**（同猫抓取证边界：明文可取、密文不碰）——API 源只在
+拿到合法授权接口时接入。

@@ -60,3 +60,6 @@ spike/
 
 # ===== AudioSR 上游克隆（R5 入库时删内嵌 .git 后再收编，暂不跟踪）=====
 src/versatile_audio_super_resolution/
+
+# ===== R7 下载源凭证（gitignored，绝不入库；字段说明见 docs/downloadhelper.md）=====
+config/sources.toml

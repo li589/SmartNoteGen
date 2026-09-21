@@ -29,6 +29,10 @@ ERROR_CODES: List[Tuple[int, str, str]] = [
     (7, "渲染环境不完整", "module 缺失/损坏、fluidsynth 不可执行、SF2 不可加载"),
     (8, "批量部分失败", "batch 部分项成功部分失败"),
     (9, "批量全部失败", "batch 全部项失败"),
+    (15, "DSP 处理失败", "算子运行期错误（读写音频、重采样、算子链执行失败）"),
+    (16, "DSP 参数错误", "ops 串解析失败、算子参数非法（trim 越界、fade<0 等）"),
+    (25, "下载源凭证缺失", "API 下载源（suno-api/haimeng/tianyin）未配置凭证"),
+    (26, "下载源请求失败", "API 下载源网络请求/响应解析失败"),
 ]
 
 
@@ -112,3 +116,27 @@ class BatchFailedError(SmartNoteGenError):
     """批量全部失败：batch 全部项失败。"""
 
     code = 9
+
+
+class DspError(SmartNoteGenError):
+    """DSP 处理失败（R6）：算子运行期错误（读写/重采样/算子链执行）。"""
+
+    code = 15
+
+
+class DspParamError(SmartNoteGenError):
+    """DSP 参数错误（R6）：ops 串解析失败、算子参数非法。"""
+
+    code = 16
+
+
+class SourceCredentialError(SmartNoteGenError):
+    """下载源凭证缺失（R7）：API 下载源未配置凭证。"""
+
+    code = 25
+
+
+class SourceRequestError(SmartNoteGenError):
+    """下载源请求失败（R7）：API 下载源网络请求/响应解析失败。"""
+
+    code = 26

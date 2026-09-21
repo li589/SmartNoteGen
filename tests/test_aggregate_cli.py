@@ -250,10 +250,10 @@ def test_post_video_multi_help():
 # ---------------------------------------------------------------------------
 
 
-def test_post_dsp_stub_exit_1():
+def test_post_dsp_requires_ops():
+    """R6 转正后 --ops 必填（缺失 -> 用法错误 2）。"""
     result = runner.invoke(app, ["post", "dsp"])
-    assert result.exit_code == 1
-    assert "R6" in result.output
+    assert result.exit_code == 2
 
 
 # ---------------------------------------------------------------------------

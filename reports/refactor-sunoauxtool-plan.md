@@ -126,16 +126,17 @@
 - [x] 真实推理路径已验证 ✓（2026-09-21：32s 冒烟 + 整首歌《星星泪-银临风》5:13 实跑）
 - 验收：适配器单测（mock 权重路径）+ 真实样本回归脚本
 
-### Phase R6 — DSP 功能包（全新，先规格后实现）
-- [ ] 规格文档：响度归一（EBU R128 简化版）、淡入淡出、重采样、裁剪/拼接/交叉淡化、
+### Phase R6 — DSP 功能包（✅ 2026-09-21 完成）
+- [x] 规格文档：响度归一（EBU R128 简化版）、淡入淡出、重采样、裁剪/拼接/交叉淡化、
       简单 EQ/压缩（numpy/scipy 实现，ffmpeg 滤镜兜底二选一——摸底后定）
-- [ ] CLI：`post dsp <wav> --ops "norm,fade-in 0.5,trim 10-25"`（管道式操作串）
-- [ ] 错误码延续分段（建议 15+ 段给 DSP）
+- [x] CLI：`post dsp <wav> --ops "norm,fade-in 0.5,trim 10-25"`（管道式操作串）
+- [x] 错误码延续分段（**15 = 处理失败 / 16 = 参数错误**）
 - 验收：每算子单元测试（数值断言）+ 1 条真实音频听感样本
 
-### Phase R7 — API 下载适配器
-- [ ] `post fetch` 统一接口：`--source catcatch|suno-api|haimeng|tianyin`
-- [ ] 猫抓路径 = 现 Cat-Catch 能力直通；API 侧 adapter 模式留位（凭证走 gitignored 配置，文档脱敏）
+### Phase R7 — API 下载适配器（✅ 2026-09-21 完成）
+- [x] `post fetch` 统一接口：`--source catcatch|suno-api|haimeng|tianyin`
+- [x] 猫抓路径 = 现 Cat-Catch 能力直通；API 侧 adapter 模式留位（凭证走 gitignored
+  `config/sources.toml` + 统一 HTTP 契约，mock 契约测试锁定；文档脱敏）
 - 验收：猫抓路径回归通过；API adapter 有契约测试（mock HTTP）
 
 ### Phase R8 — 收口发布

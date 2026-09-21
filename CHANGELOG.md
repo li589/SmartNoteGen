@@ -27,6 +27,15 @@
   （未装依赖不影响主包与 CI，退出码 6 带安装指引）；长音频自动分块 + Hann 交叉淡化 +
   块级峰值还原；输出单声道 48kHz WAV。依赖说明见 `requirements/vasr.txt`
   （源码目录模式，权重首次运行自动下载 ~2.6GB）。
+- **DSP 功能包（R6）**：`post dsp <wav> --ops "算子串"` 管道式算子链
+  （norm / loudnorm / fade-in / fade-out / trim / resample / lowcut / compress / concat）。
+  numpy/scipy 实现，零 ffmpeg 依赖；loudnorm = EBU R128 简化版（BS.1770 K 加权 +
+  双门控积分响度，自研 `dsp/loudness.py`，无 pyloudnorm）。错误码分段：
+  **15 = DSP 处理失败、16 = DSP 参数错误**。规格文档 `docs/dsp.md`。
+- **下载源统一接口（R7）**：`post fetch <query> --source catcatch|suno-api|haimeng|tianyin`。
+  猫抓路径 = `downloadhelper batch` 直通（报告口径不变）；三个 API 源为配置驱动留位
+  （gitignored `sources.toml` + 统一 HTTP 契约，mock 契约测试锁定），错误码
+  **25 = 凭证缺失、26 = 请求失败**。不做客户端逆向（既定边界）。
 - `requirements` 层面：主包依赖新增 `pillow`（video 子模块需要，原为 videomaker 隐式依赖）。
 
 ### 测试

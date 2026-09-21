@@ -42,6 +42,7 @@ def test_batch_failed_error_code_9():
 
 
 def test_error_codes_table_complete():
-    """错误码表含 0-9 连续定义。"""
+    """错误码表：0-9 连续定义（主干）+ 15/16（DSP R6）+ 25/26（下载源 R7）。"""
     codes = [c for c, _n, _d in ERROR_CODES]
-    assert codes == list(range(10))
+    assert codes[:10] == list(range(10))
+    assert set(codes) == {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 15, 16, 25, 26}
