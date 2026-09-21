@@ -226,11 +226,19 @@ def test_post_fetch_empty_directory(tmp_path):
 # ---------------------------------------------------------------------------
 
 
+import re as _re
+
+_esc27 = chr(27)
+_ANSI_RE = _re.compile(_esc27 + r"\[[0-9;]*m")
+
+
 def test_post_video_render_help():
     result = runner.invoke(app, ["post", "video", "render", "--help"])
     assert result.exit_code == 0
-    assert "--preset" in result.output
-    assert "--style" in result.output
+    # Linux CI 下 rich 输出带 ANSI 样式码，先剥离再断言
+    plain = _ANSI_RE.sub("", result.output)
+    assert "--preset" in plain
+    assert "--style" in plain
 
 
 def test_post_video_render_missing_audio_fails_clean(tmp_path):

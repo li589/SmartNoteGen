@@ -197,14 +197,37 @@ class ScoreVisualizer(Visualizer):
             return 4.0
 
     def _font(self, size: int) -> Optional[ImageFont.FreeTypeFont]:
+        """跨平台字体解析：Windows -> Linux 常见路径 -> PIL 默认字体兜底。
+
+        Linux/CI 无 msyh 时返回 load_default(size)（Pillow>=10.1 支持 size），
+        保证 BPM 标注/提示文字在无 CJK 字体的环境也能绘制（ASCII 部分）。
+        """
         from pathlib import Path as _P
-        for p in [r"C:\Windows\Fonts\msyh.ttc", r"C:\Windows\Fonts\simhei.ttf"]:
+        candidates = [
+            r"C:\Windows\Fonts\msyh.ttc",  # 微软雅黑（Windows）
+            r"C:\Windows\Fonts\simhei.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",  # Debian/Ubuntu
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+            "/System/Library/Fonts/PingFang.ttc",  # macOS
+        ]
+        for p in candidates:
             try:
                 if _P(p).exists():
                     return ImageFont.truetype(p, size)
             except OSError:
                 continue
-        return None
+        # Linux 兜底：glob 任一 DejaVu / Noto
+        for pattern in ("/usr/share/fonts/**/DejaVuSans*.ttf", "/usr/share/fonts/**/*Sans*.tt[fc]"):
+            hits = sorted(_P("/").glob(pattern))
+            if hits:
+                try:
+                    return ImageFont.truetype(str(hits[0]), size)
+                except OSError:
+                    continue
+        try:
+            return ImageFont.load_default(size=size)  # Pillow>=10.1
+        except TypeError:  # pragma: no cover - 旧 Pillow
+            return ImageFont.load_default()
 
     # -- 绘制 ---------------------------------------------------------------
 
