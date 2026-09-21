@@ -73,6 +73,23 @@ class ApiSource(SourceAdapter):
         self.description = f"API 源 {name}（配置驱动，端点/凭证见 sources.toml）"
         self.urlopen = urllib.request.urlopen  # 注入点：契约测试 mock 此处
 
+    # -- 凭证自检（--dry-run） --------------------------------------------
+
+    def check(self, query: str) -> str:
+        """校验配置可用性（**不发网络请求**）；缺配置抛 SourceCredentialError(25)。
+
+        回显 endpoint 与**掩码后**的 token，便于用户侧排错而不泄露凭证。
+        """
+        cfg = load_source_config(self.name)
+        token = cfg.get("token", "")
+        if len(token) >= 8:
+            masked = f"{token[:4]}***{token[-2:]}"
+        elif token:
+            masked = "***"
+        else:
+            masked = "(无)"
+        return f"{self.name}: endpoint={cfg['endpoint']}  token={masked}  query={query}"
+
     # -- 契约实现 ----------------------------------------------------------
 
     def fetch(self, query: str, out_dir: Path) -> List[FetchedFile]:

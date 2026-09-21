@@ -204,24 +204,50 @@ sunoaux post fetch <query> [--source catcatch|suno-api|haimeng|tianyin] [-o 输�
 | 源 | query 含义 | 状态 |
 |---|---|---|
 | `catcatch`（默认） | 猫抓缓存目录路径 | ✅ 全量可用（= `downloadhelper batch` 直通，`--fmt/--bitrate/--ffmpeg-path` 原样透传） |
-| `suno-api` | 歌曲/任务 ID | 留位：配置驱动，拿到合法 API 后填配置即用 |
-| `haimeng` | 歌曲/任务 ID | 留位（同上） |
-| `tianyin` | 歌曲/任务 ID | 留位（同上） |
+| `suno-api` | 歌曲/任务 ID | ✅ 配置驱动：填 `endpoint`(+`token`) 即用，`--dry-run` 可自检 |
+| `haimeng` | 歌曲/任务 ID | ✅ 同上 |
+| `tianyin` | 歌曲/任务 ID | ✅ 同上 |
 
 ### API 源接入契约（mock 契约测试已锁定）
 
 1. 配置文件（gitignored，查找顺序后者覆盖前者）：`config/sources.toml` → `~/.sunoauxtool/sources.toml`
-2. 配置格式：
+2. 配置 schema（`[sources.<源名>]`，三源各一节，`endpoint` 必填 / `token` 可选）：
 
    ```toml
    [sources."suno-api"]
-   endpoint = "https://你的端点/v1/songs"   # 必填
-   token = "..."                            # 可选，Bearer 头
+   endpoint = "https://你的端点/v1/songs"   # 必填；缺则退出码 25
+   token = "..."                            # 可选，作为 Bearer 头
+
+   [sources.haimeng]
+   endpoint = "https://..."
+   token = "..."
+
+   [sources.tianyin]
+   endpoint = "https://..."
+   token = "..."
    ```
 
 3. 请求：`GET {endpoint}?id={query}`，头 `Authorization: Bearer {token}`；
 4. 响应 JSON：`{"files": [{"url": "...", "name": "..."}, ...]}`；
 5. 文件逐个下载到输出目录（`name` 缺省从 URL 推断）。
+
+**凭证绝不入库**：两个配置文件均在 `.gitignore` 内；本仓不存任何真实 endpoint/token，
+端点与凭证由用户侧提供。
+
+### 凭证自检（R11，`--dry-run`）
+
+```bash
+sunoaux post fetch <query> --source haimeng --dry-run
+```
+
+只校验凭证/可用性——**不发起网络请求、不下载任何文件**：
+
+| 源 | 自检内容 | 失败退出码 |
+|---|---|---|
+| API 三源 | 读取配置并回显 `endpoint` 与**掩码后**的 `token`（如 `abcd***yz`） | **25**（配置缺失或缺 `endpoint`） |
+| `catcatch` | 校验缓存目录存在并报告可扫描文件数 | **3**（目录不存在） |
+
+排错顺序建议：先跑 `--dry-run` 把「配置问题」与「网络/契约问题」分开，再跑真实 `fetch`。
 
 错误码：**25** = 凭证/端点缺失、**26** = 请求或响应解析失败；猫抓路径沿用 20-24。
 **本仓库不做客户端逆向**（同猫抓取证边界：明文可取、密文不碰）——API 源只在

@@ -63,13 +63,19 @@ class DspProcessor:
         """处理单个 WAV 文件，返回输出路径。
 
         Raises:
-            ParameterError: 参数非法，或请求了未支持的混响（--reverb）。
+            ParameterError: 参数非法；或请求了混响（本链恒禁，见下）。
+
+        Note:
+            **混响边界（R14）**：混响算子 ``reverb`` 只存在于 standalone 算子链
+            （``sunoaux post dsp <wav> --ops "reverb 0.3"``）。本类是
+            pipeline / batch / export 的**内部链**，走 Suno 合规路径，恒不带混响。
         """
         self.validate(opts)
         if opts.reverb:
             raise ParameterError(
-                "--reverb 暂未支持（本增量未实现 fluidsynth 混响参数化；"
-                "且 Suno 导出链恒禁混响，P0-5 合规约束）",
+                "DspProcessor（pipeline / batch / export 内部链）恒不带混响——"
+                "Suno 合规约束。需要混响请用 standalone 后处理: "
+                'sunoaux post dsp <wav> --ops "reverb 0.3"',
                 code=1,
             )
 

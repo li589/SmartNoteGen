@@ -104,8 +104,21 @@ def fetch_cmd(
     fmt: str = typer.Option("both", "--fmt", help="[catcatch] 输出格式: opus | mp3 | both"),
     bitrate: str = typer.Option("192k", "--bitrate", help="[catcatch] MP3 码率"),
     ffmpeg: Optional[str] = typer.Option(None, "--ffmpeg-path", help="[catcatch] ffmpeg 绝对路径"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="[R11] 仅校验凭证/可用性：不实际取回；缺凭证报 25"
+    ),
 ) -> None:
     """统一取回入口（R7）：错误码 25=凭证缺失、26=请求失败；猫抓沿用 20-24。"""
+    if dry_run:
+        from sunoauxtool.download.sources.base import list_sources
+
+        valid = {s.name: s for s in list_sources()}
+        if source not in valid:
+            known = ", ".join(sorted(valid))
+            raise ParameterError(f"未知下载源: {source}（可用: {known}）", code=1)
+        typer.echo(f"🔎 dry-run（不取回）: {valid[source].check(query)}")
+        return
+
     if source == "catcatch":
         # 直通既有 batch 实现（能力零复制）
         download_cli.batch(

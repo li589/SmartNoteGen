@@ -68,5 +68,15 @@ class CatCatchSource(SourceAdapter):
             )
         return results
 
+    def check(self, query: str) -> str:
+        """校验缓存目录存在且可扫描（**不解码**）；目录不存在抛 InputFileError(3)。"""
+        directory = Path(query)
+        if not directory.is_dir():
+            from sunoauxtool.exceptions import InputFileError
+
+            raise InputFileError(f"猫抓缓存目录不存在: {directory}", code=3)
+        count = sum(1 for f in directory.iterdir() if f.is_file())
+        return f"catcatch: 目录={directory}  可扫描文件 {count} 个（未解码）"
+
     def report(self, skipped: List[str]) -> str:  # pragma: no cover - 预留报告渲染
         return "\n".join(f"跳过 {s}" for s in skipped)

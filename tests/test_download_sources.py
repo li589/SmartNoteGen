@@ -285,3 +285,105 @@ def test_cli_fetch_api_missing_credentials_exit_25(tmp_path, monkeypatch):
         app, ["post", "fetch", "song-7", "--source", "haimeng", "-o", str(tmp_path / "o")]
     )
     assert result.exit_code == 25
+
+
+# ---------------------------------------------------------------------------
+# R11：凭证自检（--dry-run）
+# ---------------------------------------------------------------------------
+
+
+def test_source_check_default_says_no_credential():
+    """基类默认实现：本地源无需凭证（保底分支）。"""
+    from sunoauxtool.download.sources.base import SourceAdapter
+
+    class _Local(SourceAdapter):
+        name = "local"
+        description = "test only"
+
+        def fetch(self, query, out_dir):  # pragma: no cover - 不执行
+            return []
+
+    assert "无需凭证" in _Local().check("x")
+
+
+def test_api_source_check_masks_token(api_env):
+    """check() 回显 endpoint 与掩码 token，**绝不回显明文凭证**。"""
+    out = ApiSource("suno-api").check("song-1")
+    assert "https://api.example.com/v1/songs" in out
+    assert "***" in out
+    assert "T0K" not in out
+
+
+def test_api_source_check_missing_config_exit_25(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "sunoauxtool.download.sources.api.CONFIG_CANDIDATES",
+        [tmp_path / "none.toml"],
+    )
+    with pytest.raises(SourceCredentialError) as ei:
+        ApiSource("haimeng").check("song-1")
+    assert ei.value.code == 25
+
+
+def test_catcatch_check_ok(tmp_path):
+    (tmp_path / "a.bin").write_bytes(b"x")
+    out = CatCatchSource().check(str(tmp_path))
+    assert "可扫描文件 1 个" in out
+    assert "未解码" in out
+
+
+def test_catcatch_check_missing_dir_exit_3(tmp_path):
+    from sunoauxtool.exceptions import InputFileError
+
+    with pytest.raises(InputFileError) as ei:
+        CatCatchSource().check(str(tmp_path / "nope"))
+    assert ei.value.code == 3
+
+
+def test_cli_fetch_dry_run_api_ok(api_env, tmp_path):
+    """--dry-run 只自检：退出 0、回显端点、**不落盘不下载**。"""
+    out_dir = tmp_path / "o"
+    result = runner.invoke(
+        app,
+        [
+            "post",
+            "fetch",
+            "song-7",
+            "--source",
+            "suno-api",
+            "-o",
+            str(out_dir),
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "dry-run" in result.output
+    assert "https://api.example.com/v1/songs" in result.output
+    assert not out_dir.exists()
+
+
+def test_cli_fetch_dry_run_catcatch(tmp_path):
+    result = runner.invoke(
+        app, ["post", "fetch", str(tmp_path), "--source", "catcatch", "--dry-run"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "dry-run" in result.output
+    assert "可扫描文件" in result.output
+
+
+def test_cli_fetch_dry_run_missing_credentials_exit_25(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "sunoauxtool.download.sources.api.CONFIG_CANDIDATES",
+        [tmp_path / "none.toml"],
+    )
+    result = runner.invoke(
+        app, ["post", "fetch", "song-7", "--source", "haimeng", "--dry-run"]
+    )
+    assert result.exit_code == 25
+
+
+def test_cli_fetch_dry_run_unknown_source_exit_1(tmp_path):
+    result = runner.invoke(
+        app, ["post", "fetch", str(tmp_path), "--source", "netdisk", "--dry-run"]
+    )
+    assert result.exit_code == 1
+    assert "未知下载源" in result.output

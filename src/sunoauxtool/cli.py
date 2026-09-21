@@ -1034,14 +1034,20 @@ def transcribe_cmd(
     """
     source = Path(wav).expanduser().resolve()
 
-    if backend in ("basic-pitch", "basic_pitch", "bp"):
-        from sunoauxtool.ai.basicpitch import BasicPitchAdapter
-
-        out_path = BasicPitchAdapter().transcribe(str(source), str(output) if output else None)
-        typer.echo(f"✅ 转谱完成（basic-pitch）: {out_path}")
-        return
     if backend != "builtin":
-        raise ParameterError(f"未知转谱后端: {backend!r}（可用 builtin | basic-pitch）")
+        # R12：内置 basic-pitch + entry point 插件后端，统一走注册表发现
+        from sunoauxtool.analysis import discover_transcribe_backends
+
+        backends = discover_transcribe_backends()
+        cls = backends.get(backend)
+        if cls is None:
+            raise ParameterError(
+                f"未知转谱后端: {backend!r}"
+                f"（可用 builtin | {', '.join(sorted(backends))}）"
+            )
+        out_path = cls().transcribe(str(source), str(output) if output else None)
+        typer.echo(f"✅ 转谱完成（{backend}）: {out_path}")
+        return
 
     from sunoauxtool.analysis.transcribe import TranscribeOptions, transcribe_wav
 
@@ -1081,6 +1087,91 @@ def transcribe_cmd(
             f"   自动测速 {result.detected_bpm:.1f} BPM（置信度 {result.confidence:.2f}·{label}）"
         )
     typer.echo(f"   输出: {written}")
+
+
+@app.command("analyze", help="音频分析（R13）：调性 / 和弦 / 结构分段（numpy-only）")
+@_guard
+def analyze_cmd(
+    wav: str = typer.Argument(..., help="输入音频路径"),
+    key: bool = typer.Option(False, "--key", help="调性估计（Krumhansl-Schmuckler 剖面相关）"),
+    chords: bool = typer.Option(False, "--chords", help="和弦进行估计（三和弦模板匹配）"),
+    structure: bool = typer.Option(
+        False, "--structure", help="结构分段（自相似矩阵 + Foote 新奇度）"
+    ),
+    json_out: Optional[Path] = typer.Option(None, "--json", help="把结果写为 JSON 文件"),
+) -> None:
+    """对音频做高层分析（R13）。
+
+    三个子分析可单独或组合开启；**一个都不给时默认全跑**。
+    与 ``tempo`` / ``transcribe`` 共用 numpy-only 底座（无 librosa）。
+    结构段边界可供 ``video --style score`` 的章节切换等下游使用。
+    """
+    import json
+
+    from sunoauxtool.exceptions import InputFileError
+
+    src = Path(wav).expanduser()
+    if not src.is_file():
+        raise InputFileError(f"输入音频不存在: {src}", code=3)
+
+    from sunoauxtool.analysis.chords import estimate_chords
+    from sunoauxtool.analysis.key import estimate_key
+    from sunoauxtool.analysis.structure import estimate_structure
+    from sunoauxtool.analysis.tempo import read_wav_mono
+
+    run_all = not (key or chords or structure)
+    mono, sr = read_wav_mono(str(src))
+    payload: dict = {"file": str(src.resolve()), "sample_rate": sr}
+
+    if key or run_all:
+        est = estimate_key(mono, sr)
+        payload["key"] = {
+            "key": est.key,
+            "mode": est.mode,
+            "label": est.label,
+            "confidence": round(est.confidence, 4),
+        }
+        typer.echo(f"🎼 调性: {est.label}（置信度 {est.confidence:.2f}）")
+
+    if chords or run_all:
+        segs = estimate_chords(mono, sr)
+        payload["chords"] = [
+            {
+                "start": round(s.start, 3),
+                "end": round(s.end, 3),
+                "root": s.root,
+                "quality": s.quality,
+                "label": s.label,
+            }
+            for s in segs
+        ]
+        typer.echo(f"🎹 和弦: {len(segs)} 段")
+        for s in segs[:20]:
+            typer.echo(f"   {s.start:6.2f}s - {s.end:6.2f}s  {s.label}")
+        if len(segs) > 20:
+            typer.echo(f"   ...（其余 {len(segs) - 20} 段见 --json）")
+
+    if structure or run_all:
+        secs = estimate_structure(mono, sr)
+        payload["structure"] = [
+            {
+                "index": s.index,
+                "start": round(s.start, 3),
+                "end": round(s.end, 3),
+                "duration": round(s.duration, 3),
+            }
+            for s in secs
+        ]
+        typer.echo(f"📐 结构: {len(secs)} 段")
+        for s in secs:
+            typer.echo(f"   #{s.index} {s.start:6.2f}s - {s.end:6.2f}s（{s.duration:.2f}s）")
+
+    if json_out is not None:
+        json_out.parent.mkdir(parents=True, exist_ok=True)
+        json_out.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        typer.echo(f"    JSON 输出: {json_out}")
 
 
 @app.command("new", help="交互式引导生成新音乐（新手指南）")

@@ -219,6 +219,26 @@ def op_compress(audio: np.ndarray, sr: int, args: Dict[str, str]) -> Tuple[np.nd
     return filters.compressor(audio, ratio, thr), sr
 
 
+def op_reverb(audio: np.ndarray, sr: int, args: Dict[str, str]) -> Tuple[np.ndarray, int]:
+    """混响：``reverb 0.3 [1.2]``（wet ∈ [0,1] 默认 0.3；IR 时长秒 默认 1.2）。
+
+    IR = **确定性合成**的指数衰减噪声（不入库 IR 资源，避免 LFS/版权），
+    L1 归一化保证不爆音。
+
+    **合规边界**：仅 standalone 后处理（``post dsp --ops``）可用；
+    ``export suno`` 链与 ``pipeline``（走 ``DspProcessor``）恒不带混响。
+    """
+    from sunoauxtool.dsp.reverb import apply_reverb
+
+    wet = float(args.get("arg", "0.3"))
+    seconds = float(args.get("_1", "1.2"))
+    if not 0.0 <= wet <= 1.0:
+        raise DspParamError(f"reverb wet 须在 [0, 1]: {wet}", code=16)
+    if seconds <= 0:
+        raise DspParamError(f"reverb IR 时长须 > 0（秒）: {seconds}", code=16)
+    return apply_reverb(audio, sr, wet=wet, seconds=seconds), sr
+
+
 def op_concat(
     audio: np.ndarray, sr: int, args: Dict[str, str], _ctx: Optional[dict] = None
 ) -> Tuple[np.ndarray, int]:
@@ -273,6 +293,7 @@ OPS: Dict[str, OpFunc] = {
     "resample": op_resample,
     "lowcut": op_lowcut,
     "compress": op_compress,
+    "reverb": op_reverb,
     "concat": op_concat,
 }
 

@@ -55,8 +55,9 @@ def test_parse_errors_exit_16():
 
 
 def test_unknown_operator_exit_16():
+    # 注意别用 reverb——R14 起它是**已实现**算子，不再是「未知算子」样例
     with pytest.raises(DspParamError, match="未知算子"):
-        apply_ops(_sine(), SR, parse_ops("reverb 0.5"))
+        apply_ops(_sine(), SR, parse_ops("definitely-not-an-op 0.5"))
 
 
 # ---------------------------------------------------------------------------
@@ -250,7 +251,9 @@ def test_cli_dsp_missing_input_exit_3(tmp_path):
 def test_cli_dsp_bad_ops_exit_16(tmp_path):
     src = tmp_path / "in.wav"
     sf.write(src, _sine(sec=1.0), SR, subtype="PCM_16")
-    for spec in ("reverb 1", "trim abc", "norm 3"):
+    # reverb 1 曾是「未实现算子」样例；R14 起它合法（wet=1 纯湿声），
+    # 改用真正不存在的算子名覆盖「未知算子 -> 16」分支
+    for spec in ("definitely-not-an-op 1", "trim abc", "norm 3"):
         result = runner.invoke(app, ["post", "dsp", str(src), "--ops", spec])
         assert result.exit_code == 16, spec
     result = runner.invoke(app, ["post", "dsp", str(src), "--ops", "norm -1", "--bit-depth", "8"])
@@ -265,3 +268,100 @@ def test_cli_dsp_runtime_failure_exit_15(tmp_path):
     sf.write(silent, np.zeros(SR * 2, dtype=np.float32), SR, subtype="PCM_16")
     result = runner.invoke(app, ["post", "dsp", str(silent), "--ops", "loudnorm -16"])
     assert result.exit_code == 15
+
+
+# ---------------------------------------------------------------------------
+# R14：混响 reverb（仅 standalone 算子链；DspProcessor 内部链恒禁）
+# ---------------------------------------------------------------------------
+
+
+def test_synthesize_ir_l1_normalized_and_deterministic():
+    from sunoauxtool.dsp.reverb import synthesize_ir
+
+    a = synthesize_ir(SR, seconds=0.5)
+    b = synthesize_ir(SR, seconds=0.5)
+    assert a.shape[0] == int(round(SR * 0.5))
+    assert abs(np.abs(a).sum() - 1.0) < 1e-9  # L1=1 -> 收缩映射，数学上不爆音
+    assert np.array_equal(a, b)  # 同 seed 确定性
+
+
+def test_apply_reverb_wet_zero_is_identity():
+    from sunoauxtool.dsp.reverb import apply_reverb
+
+    x = _sine(sec=0.5)
+    out = apply_reverb(x, SR, wet=0.0)
+    assert out.shape == x.shape
+    assert np.allclose(out, x, atol=1e-6)
+
+
+def test_apply_reverb_tail_in_silence_and_no_clipping():
+    """后段静音的输入应长出混响尾巴，且峰值不超过输入峰值。"""
+    from sunoauxtool.dsp.reverb import apply_reverb
+
+    half = int(0.5 * SR)
+    x = np.concatenate([_sine(sec=0.5, amp=0.8), np.zeros(half, dtype=np.float32)])
+    out = apply_reverb(x, SR, wet=1.0, seconds=0.6)
+
+    assert out.shape == x.shape  # insert 效果：时长不变
+    assert float(np.abs(out[half + 2000 :]).max()) > 1e-4  # 静音区出现尾巴
+    assert float(np.abs(out).max()) <= 0.8 + 1e-6  # 不爆音
+
+
+def test_apply_reverb_stereo_channels_independent():
+    from sunoauxtool.dsp.reverb import apply_reverb
+
+    mono = _sine(sec=0.5)
+    stereo = np.stack([mono, np.zeros_like(mono)], axis=1)
+    out = apply_reverb(stereo, SR, wet=1.0, seconds=0.3)
+
+    assert out.shape == stereo.shape
+    assert float(np.abs(out[:, 1]).max()) < 1e-6  # 全零声道仍全零
+    assert float(np.abs(out[:, 0]).max()) > 0.0
+
+
+def test_apply_reverb_empty_passthrough():
+    from sunoauxtool.dsp.reverb import apply_reverb
+
+    assert apply_reverb(np.zeros(0, dtype=np.float32), SR).shape == (0,)
+
+
+def test_op_reverb_registered_and_runs():
+    from sunoauxtool.dsp.ops import OPS
+
+    assert "reverb" in OPS
+    x = _sine(sec=0.5)
+    out, sr = apply_ops(x, SR, parse_ops("reverb 0.4"))
+    assert sr == SR
+    assert out.shape == x.shape
+    assert not np.allclose(out, x)  # 确实加了混响
+
+
+def test_op_reverb_rejects_bad_params():
+    with pytest.raises(DspParamError):
+        apply_ops(_sine(sec=0.2), SR, parse_ops("reverb 1.5"))  # wet > 1
+    with pytest.raises(DspParamError):
+        apply_ops(_sine(sec=0.2), SR, parse_ops("reverb 0.3 0"))  # 时长 <= 0
+
+
+def test_cli_dsp_reverb_end_to_end(tmp_path):
+    src = tmp_path / "in.wav"
+    sf.write(src, _sine(sec=1.0), SR, subtype="PCM_16")
+    out = tmp_path / "rev.wav"
+    result = runner.invoke(
+        app, ["post", "dsp", str(src), "--ops", "reverb 0.3", "-o", str(out)]
+    )
+    assert result.exit_code == 0, result.output
+    assert out.is_file()
+
+
+def test_dsp_processor_still_rejects_reverb_compliance_boundary(tmp_path):
+    """合规边界：pipeline/batch 内部链（DspProcessor）恒不带混响。"""
+    from sunoauxtool.dsp import DspOptions, DspProcessor
+    from sunoauxtool.exceptions import ParameterError
+
+    src = tmp_path / "in.wav"
+    sf.write(src, _sine(sec=0.5), SR, subtype="PCM_16")
+    with pytest.raises(ParameterError) as ei:
+        DspProcessor().process(str(src), DspOptions(reverb=True), str(tmp_path / "o.wav"))
+    assert ei.value.code == 1
+    assert "standalone" in str(ei.value)

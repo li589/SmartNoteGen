@@ -1,0 +1,29 @@
+# SunoAuxTool 插件示例（R12）——演示「第三方包经 entry point 注册扩展」。
+#
+# 安装：pip install -e examples/plugin_demo
+# 验证：sunoauxtool transcribe in.wav --backend demo
+#       sunoaux post fetch q --source demo-source --dry-run
+# 卸载：pip uninstall sunoaux-demo-plugin
+#
+# 注意：本包不在主仓构建产物内（仅示例），主 pyproject 未把它加入 packages。
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sunoaux-demo-plugin"
+version = "0.1.0"
+description = "SunoAuxTool 插件示例（R12）：演示经 entry point 注册转谱后端与下载源"
+requires-python = ">=3.12"
+# 依赖核心已在环境中安装（editable），此处不声明以免 pip 去 PyPI 找同名包
+dependencies = []
+
+[project.entry-points."sunoauxtool.transcribe_backends"]
+demo = "sunoaux_demo_plugin:DemoTranscribeBackend"
+
+[project.entry-points."sunoauxtool.download_sources"]
+demo-source = "sunoaux_demo_plugin:DemoSource"
+
+[tool.setuptools]
+packages = ["sunoaux_demo_plugin"]

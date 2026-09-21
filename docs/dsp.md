@@ -25,9 +25,20 @@ sunoaux post dsp <wav> --ops "<算子串>" [-o out.wav] [--bit-depth 16|24]
 | `lowcut` | `lowcut 80` | 一阶高通低频切（复用既有 `filters.highpass`） |
 | `compress` | `compress 3 [-14]` | 软拐点压缩：ratio（≥1）+ 阈值 dBFS（默认 -12） |
 | `concat` | `concat b.wav [xf=0.5]` | 拼接（可选秒数交叉淡化，等功率余弦）；采样率不一致自动重采样 |
+| `reverb` | `reverb 0.3 [1.2]` | **混响（R14）**：合成指数衰减噪声 IR + FFT 卷积 + wet/dry（wet ∈ [0,1] 默认 0.3；IR 时长秒 默认 1.2）。wet/时长非法 → 16 |
 
 算子串语法：逗号分隔 `name` / `name 主参数` / `name key=value`，
 例：`"norm -1, fade-in 0.5, trim 10-25, resample 32000, concat bed.wav xf=0.5"`。
+
+### 混响的合规边界（R14）
+
+`reverb` **只在 standalone 后处理链**可用：`sunoaux post dsp <wav> --ops "reverb 0.3"`。
+`export suno` 链与 `pipeline`（二者走 `DspProcessor` 内部链）**恒不带混响**——Suno 合规
+要求无混响；在那里请求混响会得到**退出码 1** 并提示改用 standalone 路径。
+
+IR 为**确定性合成**（指数衰减噪声，L1 归一化），非真实采样 IR：不入库、无版权与 LFS 负担；
+且 `sum|ir| = 1` 使卷积成为收缩映射（输出峰值 ≤ 输入峰值），数学上不会爆音，
+故无需事后 limiter。输出截断到输入长度（insert 效果，时长不变）。
 
 ## 架构
 

@@ -37,13 +37,31 @@ class SourceAdapter(ABC):
         out_dir.mkdir(parents=True, exist_ok=True)
         return out_dir
 
+    def check(self, query: str) -> str:
+        """凭证/可用性自检（``--dry-run``）：返回一条人类可读结论。
 
-def list_sources() -> List[SourceAdapter]:
-    """全部已注册源（新源加到此处一行）。"""
+        默认实现：本地源，无需凭证。需要凭证的源应覆盖此方法，
+        凭证缺失/不可用抛 ``SourceCredentialError(25)``；**不得回显明文凭证**。
+        """
+        return f"{self.name or 'source'}: 本地源，无需凭证"
+
+
+def discover_sources() -> Dict[str, SourceAdapter]:
+    """全部已注册源 ``{name: adapter}`` = 内置硬编码 + entry point 插件。
+
+    扩展点：``sunoauxtool.download_sources``（见 :mod:`sunoauxtool.plugins`）。
+    """
     from sunoauxtool.download.sources.api import API_SOURCE_NAMES, ApiSource
     from sunoauxtool.download.sources.catcatch import CatCatchSource
 
-    sources: List[SourceAdapter] = [CatCatchSource()]
+    from sunoauxtool.plugins import discover
+
+    builtins: Dict[str, SourceAdapter] = {"catcatch": CatCatchSource()}
     for name in API_SOURCE_NAMES:
-        sources.append(ApiSource(name))
-    return sources
+        builtins[name] = ApiSource(name)
+    return discover("download_sources", builtins, base=SourceAdapter)
+
+
+def list_sources() -> List[SourceAdapter]:
+    """全部已注册源（兼容旧签名）= ``discover_sources()`` 的值列表。"""
+    return list(discover_sources().values())
