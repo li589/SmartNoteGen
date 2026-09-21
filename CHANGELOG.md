@@ -2,6 +2,75 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 风格。
 
+## [1.3.0] - 2026-09-22（R14 DSP 混响 + R15 视频/预览扩展）
+
+版本映射依 `docs/reports/next-phase-plan.md`（R14+R15 → v1.3.0）。
+
+### 新增
+- **DSP 混响算子（R14）**：`sunoaux post dsp <wav> --ops "reverb 0.3 [1.2]"`。
+  `dsp/reverb.py` 合成指数衰减噪声 IR 并做 **L1 归一化**（`sum|ir|=1` → 卷积是收缩映射，
+  数学上不爆音，无需 limiter）+ numpy 手写 FFT 卷积（不引 scipy）+ wet/dry 混合。
+- **视频视觉层 `bars`（R15）**：频率柱状条 + 峰值保持帽（numpy+PIL），经 `video_visuals`
+  扩展点注册。至此 PIL 创意层 8 种风格（含 ffmpeg 引擎的 waveform / spectrum）。
+- **视频预览（R15）**：`sunoauxtool video-preview <video> [--frames N] [-o out]`。
+  ffprobe 取时长 → 在 `(i+0.5)*时长/n` 处抽帧（避开首帧黑场与结尾越界）→ 生成单文件
+  scrub HTML（点缩略图 seek 到对应时间点）。`preview.py` 新增 `probe_duration` /
+  `extract_preview_frames` / `build_video_preview_html` / `VideoPreviewGenerator`
+  （`runner` 为注入点，测试零 ffmpeg 依赖）。
+
+### 合规边界
+- **混响只在 standalone `post dsp --ops` 链可用**：`DspProcessor`（pipeline / batch /
+  export 内部链）仍恒禁混响（Suno 合规），报错并指向 standalone 路径。
+
+### 输出布局
+- 视频缩略帧落在**新建目录** `<out>/preview/<视频名>/`（默认 `output/preview/...`），
+  不与既有音频/视频产物目录冲突；`output/` 本身 gitignored。
+
+### 测试
+- `tests/test_dsp_ops.py` +104（混响 + CLI + 合规边界）；`tests/test_video_extra.py` 10 例
+  （含像素探针：底部留白纯背景 / 柱体存在 / 峰值帽衰减 / 注入背景沿用 / 静音不抛错）；
+  `tests/test_preview_video.py` 13 例。全量通过，覆盖率 88.21%（门槛 87%）。
+
+## [1.2.0] - 2026-09-21（R12 统一插件架构 + R13 分析扩展）
+
+### 新增
+- **统一插件架构（R12）**：`sunoauxtool/plugins.py` 的 `discover(point, builtins)` =
+  内置硬编码 + `importlib.metadata.entry_points(group="sunoauxtool.<point>")`；
+  坏插件只 `warnings.warn` 并跳过（绝不拖垮 CLI）；支持 `base` 类型校验与
+  `instantiate=False`（注册表保留类本身）。
+  接入 **5 个扩展点**：`download_sources` / `video_visuals` / `transcribe_backends` /
+  `ai_backends` / `render_engines`；`transcribe --backend` 改走注册表。
+  附可安装示例插件 `examples/plugin_demo/` 与文档 `docs/plugins.md`。
+- **分析扩展（R13，numpy-only）**：`analysis/key.py`（chroma × Krumhansl-Kessler 剖面
+  Pearson 相关估计调性）、`chords.py`（逐窗 chroma × 48 个三和弦模板余弦 + 连续同和弦
+  合并）、`structure.py`（自相似矩阵 + Foote 棋盘核新奇度 → 段落边界）。
+  CLI：`analyze <wav> [--key] [--chords] [--structure] [--json]`（全关时默认三项全跑）。
+  均为启发式估计，用于辅助编曲/打点，不做权威判定。
+
+### 修复
+- **`create_visualizer` 吞掉 `**extra`（真实缺陷）**：`--style score` 传入的
+  score / beat_times / bpm / notation **从未送达构造器**，实际只渲染占位帧。
+  此前测试直连 `ScoreVisualizer` 所以一直没暴露；已改 `cls(config, **extra)` 并加回归测试。
+
+## [1.1.0] - 2026-09-21（R9 VASR 固化 + R10 清理 + R11 下载源凭证接入）
+
+### 新增
+- **VASR 补丁真入库（R9）**：`patches/vasr_super_resolution_long_audio.patch` 提取
+  `[SunoAuxTool patch R5]` 末块 bug 修复（已校验可干净应用到上游 `d312fba`）；
+  `scripts/setup_vasr.py` 幂等地克隆上游 → 剥离内嵌 `.git` → 重打补丁；
+  `tests/test_ai_audiosr.py` 160 行桩化测试（不依赖真实 torch/权重）；
+  `requirements/vasr.txt` 指向补丁与 setup 脚本。
+- **下载源凭证接入（R11）**：新增 `SourceAdapter.check()` 自检钩子——基类默认
+  「本地源，无需凭证」、API 源**掩码回显** token（`abcd***yz`，绝不回显明文）、
+  catcatch 校验目录存在性。`post fetch --dry-run` 只校验不下载；
+  凭证缺失干净报 **25**、catcatch 目录不存在报 **3**。
+  `list_sources()` 改走 `discover_sources()`；`sources.toml` 三源 schema 写入
+  `docs/downloadhelper.md`（凭证绝不入库）。
+
+### 变更
+- **一致性清理（R10）**：删除死代码 `_not_implemented`（全仓零调用）；修正过时注释
+  （R6「交付占位」→ 已交付；P1「骨架/二期」→ 已完整实现）。
+
 ## [1.0.0] - 2026-09-21（更名 SunoAuxTool + 单包化统一 + R3-R7 全量交付）
 
 ### 变更（破坏性/结构性）

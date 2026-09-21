@@ -21,6 +21,7 @@ import numpy as np
 import soundfile as sf
 from typer.testing import CliRunner
 
+from sunoauxtool import __version__
 from sunoauxtool.aggregate import app
 from sunoauxtool.download import cli as download_cli
 
@@ -63,7 +64,8 @@ def _first_generated_midi(tmp_path: Path) -> Path:
 def test_version():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "sunoaux 1.0.0" in _text(result)
+    # 动态比对 __version__（曾硬编码 1.0.0，bump 到 1.3.0 时假失败）
+    assert f"sunoaux {__version__}" in _text(result)
 
 
 def test_pre_group_lists_five_commands():

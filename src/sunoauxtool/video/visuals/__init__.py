@@ -7,6 +7,7 @@
 - tracks                 → PIL 创意层（TracksVisualizer，v0.3 分轨）
 - waveform_scroll        → PIL 创意层（WaveformScrollVisualizer，v0.3 滚动波形）
 - score                  → PIL 创意层（ScoreVisualizer，#14 滚动谱面）
+- bars                   → PIL 创意层（BarsVisualizer，R15 频率柱状条 + 峰值保持帽）
 
 通过 create_visualizer(style, config, **extra) 工厂获取 PIL 路径实例。
 """
@@ -50,7 +51,7 @@ def create_visualizer(style: str, config: Config, **extra) -> Visualizer:
     """工厂函数：实例化 PIL 创意层 Visualizer。
 
     Args:
-        style: 视觉效果风格（circular_spectrum / reactive / tracks /
+        style: 视觉效果风格（bars / circular_spectrum / reactive / tracks /
             waveform_scroll / score，或插件注册的新风格）。
         config: 生效配置。
         **extra: 透传给 Visualizer 构造器的额外参数

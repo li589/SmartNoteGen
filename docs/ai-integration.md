@@ -32,14 +32,14 @@ set HF_ENDPOINT=https://hf-mirror.com
 ## 2. MusicGen 适配器（T-P1-1 已实现）
 
 - 模型：`facebook/musicgen-medium`（1.5B，fp16，8GB 显存可跑）；`--model-size small` 降档
-- 用法：`smartnotegen ai musicgen --input melody.wav --prompt "upbeat pop" --output out.wav [--duration 20] [--model-size medium|small] [--seed N] [--device cuda|cpu]`
+- 用法：`sunoauxtool ai musicgen --input melody.wav --prompt "upbeat pop" --output out.wav [--duration 20] [--model-size medium|small] [--seed N] [--device cuda|cpu]`
 - 实现要点：`audiocraft.models.MusicGen.get_pretrained(...)`（延迟导入）；melody conditioning 用 `generate_with_chroma`；fp16；`--seed` 可复现（torch.manual_seed + cuda.manual_seed_all）；显存不足给出降档建议（退出码 6）
 - 输出：32kHz WAV（`export suno` 可消费，导出链内部重采样到 44.1kHz）
 - 性能基线：见 §4 表格
 
 ## 3. DiffRhythm 适配器（T-P1-2，前置 T-S1 spike）
 
-- 用法：`smartnotegen ai diffrhythm --prompt "slow ballad" [--lyrics "歌词"] [--duration 95] [--device cuda|cpu]`
+- 用法：`sunoauxtool ai diffrhythm --prompt "slow ballad" [--lyrics "歌词"] [--duration 95] [--device cuda|cpu]`
 - 关键修改：适配器自动将 infer 脚本 `decode_audio(..., chunked=False)` 与 `inference(..., chunked=False)` 改为 `chunked=True`（8GB 显存必需，幂等补丁，用户无需改脚本）
 - DiffRhythm 官方仓库**不可 pip 安装**（无 setup.py），适配器以子进程方式运行 `infer/infer.py`（仓库存在 cwd 相对路径依赖），通过 `DIFFRHYTHM_DIR` 环境变量或默认 `module/diffrhythm` 定位
 - 权重经 hf-mirror.com 下载（实测本机下载到 `module/diffrhythm/pretrained/`，约 7.5GB）
@@ -98,13 +98,13 @@ set HF_ENDPOINT=https://hf-mirror.com
 
 ```bash
 # P0 环境（仅 base.txt）下：
-smartnotegen ai musicgen --input m.wav --prompt "upbeat pop"
+sunoauxtool ai musicgen --input m.wav --prompt "upbeat pop"
 # → 错误 [6]: MusicGen 不可用：未安装 P1 依赖...
 #   请先安装: pip install torch --index-url https://download.pytorch.org/whl/cu121
 #   然后: pip install -r requirements/ai.txt
 
 # 验证未触发 torch import：
-python -c "import sys; import smartnotegen.cli; assert 'torch' not in sys.modules"
+python -c "import sys; import sunoauxtool.cli; assert 'torch' not in sys.modules"
 ```
 
 ---

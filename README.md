@@ -78,6 +78,8 @@ sunoaux post video render song.wav      # = videomaker render（音乐视频）
 | `score` | MIDI → 谱面（五线谱 SVG/PNG、简谱、MusicXML） | `sunoauxtool score song.mid --format all` |
 | `tempo` | 音频测速（ACF + 节奏先验，消倍频歧义） | `sunoauxtool tempo song.wav` |
 | `transcribe` | WAV → MIDI 转谱（内置单旋律；复调用 basic-pitch） | `sunoauxtool transcribe song.wav -o out.mid` |
+| `analyze` | 调性 / 和弦进行 / 段落结构估计（numpy-only 启发式） | `sunoauxtool analyze song.wav --key --chords --structure` |
+| `video-preview` | 视频缩略帧 + 时间轴 scrub 预览页 | `sunoauxtool video-preview out.mp4 --frames 6` |
 | `export suno` | Suno 合规导出（10–30s WAV/MP3） | `sunoauxtool export suno --input xxx.wav --duration 25` |
 | `pipeline` | 一键闭环 generate→render→export | `sunoauxtool pipeline`（零参数 demo） |
 | `config init` | 生成配置文件模板 | `sunoauxtool config init` |
@@ -94,6 +96,10 @@ sunoaux post video render song.wav      # = videomaker render（音乐视频）
 | `inspire` | 灵感库管理（SQLite 存储） | `sunoauxtool inspire init` |
 | `errors` | 打印错误码表 | `sunoauxtool errors` |
 
+后期处理三件套（`enhance` / `dsp` / `fetch`）挂在聚合入口的 `post` 组下：
+`sunoaux post enhance song.wav`、`sunoaux post dsp song.wav --ops "reverb 0.3"`、
+`sunoaux post fetch "歌名" --source catcatch --dry-run`。
+
 完整参数说明见 [docs/usage.md](docs/usage.md)；乐谱生成（五线谱 / 简谱 / MusicXML）见
 [docs/score.md](docs/score.md)。
 
@@ -105,7 +111,7 @@ sunoaux post video render song.wav      # = videomaker render（音乐视频）
 > 适配抖音/YouTube/Instagram/官网四大平台。非 AI，独立包，依赖 SunoAuxTool（单向）。
 
 **输入格式**：WAV / MP3 / FLAC / OGG / **MIDI**（MIDI 自动用 FluidSynth 渲染）
-**能力**：多轨混音（增益/声像/归一化）、分轨可视化、滚动谱面（五线谱/简谱）、7 种视觉效果、多平台批量
+**能力**：多轨混音（增益/声像/归一化）、分轨可视化、滚动谱面（五线谱/简谱）、8 种视觉效果、多平台批量
 
 ```bash
 videomaker render ... 命令随 `pip install -e .` 一并安装（兼容入口保留）
@@ -124,7 +130,7 @@ videomaker render drums.wav "bass.mid:gain=0.8:pan=-0.3" melody.mp3 \
 videomaker multi x.wav --presets douyin,youtube,instagram,official \
     --style circular_spectrum --logo logo.png
 
-# 7 种视觉效果：waveform / spectrum / circular_spectrum / reactive / tracks / waveform_scroll / score
+# 8 种视觉效果：waveform / spectrum / circular_spectrum / reactive / tracks / waveform_scroll / score / bars
 # score 样式：滚动谱面（播放头居中、当前音高亮），--tempo-grid 叠加节拍网格 + BPM 标注
 videomaker render song.mid -p douyin --style score --tempo-grid --notation jianpu
 ```
@@ -151,18 +157,21 @@ videomaker render song.mid -p douyin --style score --tempo-grid --notation jianp
 而是明确报错并提示改用缓存捕获的那份（它已是完整明文副本）。
 
 ```bash
-downloadhelper 命令随 `pip install -e .` 一并安装（兼容入口保留）
+downloadhelper 命令随 `pip install -e .` 一并安装
 export SUNO_FFMPEG=/d/tools/ffmpeg/bin/ffmpeg.exe   # ffmpeg 不在 PATH 时：指文件或指目录
 
-suno-cat-catch-resolve probe  "Suno _ AI Music.mp3"      # 取证判定
-suno-cat-catch-resolve decode "Suno _ AI Music.mp3" -o ./out
-suno-cat-catch-resolve batch  ./downloads -o ./out       # 批量，密文自动跳过
+downloadhelper probe  "Suno _ AI Music.mp3"      # 取证判定
+downloadhelper decode "Suno _ AI Music.mp3" -o ./out
+downloadhelper batch  ./downloads -o ./out       # 批量，密文自动跳过
 ```
 
-> **命名**：目录 / 发行名 `Suno-Cat-Catch-Resolve`，可导入包名 `suno_cat_catch_resolve`
-> （连字符不是合法 Python 标识符）。`python -m` 与 import 一律用后者。
+> **命名**：三包合一后本子包为 **`sunoauxtool.download`**（CLI 入口 **`downloadhelper`**）。
+> 旧目录名 `Suno-Cat-Catch-Resolve`、旧入口 `suno-cat-catch-resolve` 与旧 import 名
+> `suno_cat_catch_resolve` 均已移除，无兼容 shim——请改用上面的 `downloadhelper` 命令
+> 与 `import sunoauxtool.download`（旧名 `smartnotegen` / `videomaker` 才有 shim）。
 
-详见 [src/Suno-Cat-Catch-Resolve/README.md](src/Suno-Cat-Catch-Resolve/README.md)。
+详见 [docs/downloadhelper.md](docs/downloadhelper.md)（三包合一后子包位于
+`src/sunoauxtool/download/`，原 `src/Suno-Cat-Catch-Resolve/` 目录已移除）。
 
 ---
 

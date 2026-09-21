@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 from typer.testing import CliRunner
 
+from sunoauxtool import __version__
 from sunoauxtool.cli import app
 from sunoauxtool.export.audio import write_wav
 
@@ -27,7 +28,8 @@ def test_help_lists_all_subcommands():
 def test_version():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "1.0.0" in result.output
+    # 动态比对 __version__（曾硬编码 1.0.0，bump 到 1.3.0 时假失败）
+    assert __version__ in result.output
 
 
 def test_config_init(tmp_project):

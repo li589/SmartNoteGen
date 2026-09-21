@@ -92,6 +92,7 @@ videomaker render music.wav -p youtube -s spectrum --title "我的曲子" --logo
 | `tracks` | PIL 创意层 | **分轨频谱**（多轨垂直排列，色彩区分） | 🎨 快 |
 | `waveform_scroll` | PIL 创意层 | **滚动波形**（播放头居中，波形流动） | 🎨 快 |
 | `score` | PIL 创意层 | **滚动谱面**（五线谱/简谱，播放头居中、当前音高亮） | 🎨 快 |
+| `bars` | PIL 创意层 | **频率柱状条** + 峰值保持帽（R15） | 🎨 快 |
 
 双引擎架构：waveform/spectrum 走 ffmpeg 原生滤镜（最快）；创意风格走 PIL 逐帧渲染 + rawvideo 管道直写 ffmpeg（v0.2.1 提速 26 倍：21s → 0.8s/3s 音频）。
 
