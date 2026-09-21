@@ -47,6 +47,8 @@ from smartnotegen.exceptions import (
     BatchFailedError,
     BatchPartialError,
     ERROR_CODES,
+    InputFileError,
+    ParameterError,
 )
 from smartnotegen.export.suno import SunoExporter
 from smartnotegen.generators.music21_melody import Music21MelodyGenerator
@@ -136,6 +138,16 @@ def generate_midi(
     project: Optional[str] = typer.Option(None, "--project", help="输出项目名（P2-5）"),
     output_dir: Optional[Path] = typer.Option(None, "--output-dir", help="输出根目录覆盖"),
     output: Optional[Path] = typer.Option(None, "--output", help="输出 .mid 路径"),
+    score: bool = typer.Option(
+        False, "--score", help="同时产出谱面（与 MIDI 同目录同主干，#12）"
+    ),
+    score_format: str = typer.Option(
+        "svg", "--score-format", help="谱面格式（逗号分隔）：svg/png/jianpu/jianpu-txt/musicxml/all"
+    ),
+    score_theme: str = typer.Option("light", "--score-theme", help="谱面配色 light|dark"),
+    score_key: Optional[str] = typer.Option(
+        None, "--score-key", help="记谱调式覆盖（默认沿用生成的调式）"
+    ),
 ) -> None:
     """程序化 MIDI 生成（P0-2；P2-2 乐理开关 / P2-4 风格预设 / P2-5 输出管理）。"""
     cfg = _load_config(ctx)
@@ -185,6 +197,9 @@ def generate_midi(
     typer.echo(f"✅ MIDI 已生成: {path}")
     typer.echo(f"   轨道: {', '.join(seq.track_names)}")
     typer.echo(f"   时长: {seq.duration_seconds():.1f}s（{request.bpm}bpm / {request.bars} 小节）")
+    if score:
+        for name, written in _export_score_for(seq, path, score_format, score_theme, score_key).items():
+            typer.echo(f"   谱面[{name}]: {written}")
 
 
 # ---------------------------------------------------------------------------
@@ -212,6 +227,16 @@ def generate_melody(
     project: Optional[str] = typer.Option(None, "--project", help="输出项目名（P2-5）"),
     output_dir: Optional[Path] = typer.Option(None, "--output-dir", help="输出根目录覆盖"),
     output: Optional[Path] = typer.Option(None, "--output", help="输出 .mid 路径"),
+    score: bool = typer.Option(
+        False, "--score", help="同时产出谱面（与 MIDI 同目录同主干，#12）"
+    ),
+    score_format: str = typer.Option(
+        "svg", "--score-format", help="谱面格式（逗号分隔）：svg/png/jianpu/jianpu-txt/musicxml/all"
+    ),
+    score_theme: str = typer.Option("light", "--score-theme", help="谱面配色 light|dark"),
+    score_key: Optional[str] = typer.Option(
+        None, "--score-key", help="记谱调式覆盖（默认沿用生成的调式）"
+    ),
 ) -> None:
     """乐理旋律生成（P0-3）：主旋律 + N 个变奏（同文件多轨）。"""
     cfg = _load_config(ctx)
@@ -260,6 +285,9 @@ def generate_melody(
     )
     typer.echo(f"✅ 旋律 MIDI 已生成: {path}")
     typer.echo(f"   轨道: {', '.join(seq.track_names)}")
+    if score:
+        for name, written in _export_score_for(seq, path, score_format, score_theme, score_key).items():
+            typer.echo(f"   谱面[{name}]: {written}")
 
 
 # ---------------------------------------------------------------------------
@@ -409,6 +437,16 @@ def pipeline_cmd(
     compressor: bool = typer.Option(False, "--compressor", help="开启轻压缩"),
     reverb: bool = typer.Option(False, "--reverb", help="请求混响（当前未支持，显式报错）"),
     no_preview: bool = typer.Option(False, "--no-preview", help="不生成 HTML 预览页"),
+    score: bool = typer.Option(
+        False, "--score", help="在 MIDI 旁产出谱面，并把五线谱内嵌进预览页（#12）"
+    ),
+    score_format: str = typer.Option(
+        "svg", "--score-format", help="谱面格式（逗号分隔）：svg/png/jianpu/jianpu-txt/musicxml/all"
+    ),
+    score_theme: str = typer.Option("light", "--score-theme", help="谱面配色 light|dark"),
+    score_key: Optional[str] = typer.Option(
+        None, "--score-key", help="记谱调式覆盖（默认沿用生成的调式）"
+    ),
 ) -> None:
     """闭环：生成 → 渲染 → DSP → 合规导出（P0 + P2-1 + P2-5）。"""
     from smartnotegen.pipeline import Pipeline
@@ -420,13 +458,22 @@ def pipeline_cmd(
         counterpoint=counterpoint, inversion=inversion, rhythm=rhythm,
     )
     opts = _export_opts_from_config(cfg, duration=duration, format=format)
+    # 先叠加 DSP/预览覆盖，再交给 Pipeline —— 顺序不能反，否则 --no-preview 会把
+    # 前面的 fade/eq/compressor 覆盖一起丢掉（历史缺陷：那行曾是 cfg.merge_cli()）
     merged = cfg.merge_cli(
-        fade_in_ms=fade_in, fade_out_ms=fade_out, eq=eq, compressor=compressor, reverb=reverb
+        fade_in_ms=fade_in, fade_out_ms=fade_out, eq=eq, compressor=compressor, reverb=reverb,
+        preview_enabled=False if no_preview else None,
     )
-    # 应用 --no-preview
-    if no_preview:
-        merged = cfg.merge_cli()  # 保持其他配置不变
-    pipeline = Pipeline(merged, project=project, output_dir=output_dir, dry_run=dry_run)
+    pipeline = Pipeline(
+        merged,
+        project=project,
+        output_dir=output_dir,
+        dry_run=dry_run,
+        score=score,
+        score_format=score_format,
+        score_theme=score_theme,
+        score_key=score_key,
+    )
     result = pipeline.run(request, opts)
     prefix = "[DRY-RUN] " if dry_run else "✅ "
     typer.echo(f"{prefix}Pipeline 完成")
@@ -436,6 +483,8 @@ def pipeline_cmd(
         f"{result.bit_depth}bit / 和弦 {result.chords} / seed {result.seed} / "
         f"{result.bpm}bpm / {result.bars} 小节"
     )
+    for name, path in result.score_paths.items():
+        typer.echo(f"   谱面[{name}]: {path}")
 
 
 # ---------------------------------------------------------------------------
@@ -1008,6 +1057,166 @@ def new_cmd() -> None:
     typer.echo(f"✅ 完成: {result.export_path}")
     typer.echo(f"   预览页: {Path(result.export_path).parent / 'preview.html'}")
     typer.echo("   提示: 用 smartnotegen inspire add <path> 保存为灵感")
+
+
+@app.command("score", help="从 MIDI 生成谱面（五线谱 SVG/PNG、简谱、MusicXML）")
+@_guard
+def score_cmd(
+    ctx: typer.Context,
+    midi: Path = typer.Argument(..., help="输入 .mid 路径"),
+    format: str = typer.Option(
+        "svg", "--format", "-f",
+        help="输出格式（逗号分隔）：svg / png / jianpu / jianpu-txt / musicxml / all",
+    ),
+    output_dir: Optional[Path] = typer.Option(
+        None, "--output-dir", "-o", help="输出目录（默认与输入同目录）"
+    ),
+    key: Optional[str] = typer.Option(None, "--key", help="调式，如 'C major' / 'a minor'"),
+    time_signature: Optional[str] = typer.Option(
+        None, "--time-signature", help="拍号，如 '4/4'（默认 4/4）"
+    ),
+    title: Optional[str] = typer.Option(None, "--title", help="标题（默认取文件名）"),
+    composer: Optional[str] = typer.Option(None, "--composer", help="作曲者署名"),
+    bars: Optional[int] = typer.Option(None, "--bars", help="小节数（默认按最后一个音推算）"),
+    clef: Optional[List[str]] = typer.Option(
+        None, "--clef", help="谱号覆盖，格式 '轨道名=treble|bass'（可多次）"
+    ),
+    theme: str = typer.Option("light", "--theme", help="配色：light（白纸黑墨）/ dark"),
+    scale: float = typer.Option(
+        2.0, "--scale", help="位图超采样倍数（越大边缘越干净；不改变输出像素尺寸）"
+    ),
+    page_width: Optional[float] = typer.Option(
+        None, "--page-width", help="页面宽度（像素；五线谱与简谱共用）"
+    ),
+    space: Optional[float] = typer.Option(None, "--space", help="五线谱谱线间距（简谱忽略）"),
+    no_title: bool = typer.Option(False, "--no-title", help="不渲染标题区"),
+    no_tempo: bool = typer.Option(False, "--no-tempo", help="不渲染速度记号"),
+    no_measure_numbers: bool = typer.Option(
+        False, "--no-measure-numbers", help="不渲染小节号"
+    ),
+    no_ties: bool = typer.Option(False, "--no-ties", help="不渲染延音线/连音弧"),
+    list_formats: bool = typer.Option(
+        False, "--list-formats", help="只打印可用格式与主题，不渲染"
+    ),
+) -> None:
+    """从 .mid 生成谱面产物（Task 8-#12）。
+
+    产物与输入同名不同后缀，落在同一目录（或 --output-dir）：
+    ``<stem>.svg`` / ``<stem>.png`` / ``<stem>.jianpu.svg`` /
+    ``<stem>.jianpu.txt`` / ``<stem>.musicxml``。
+
+    ``--format all`` 一次产出全部；PNG 需要 Pillow。
+
+    注：``--key`` 只影响调号/拼写，不改变音符本身；MIDI 文件里没有调式信息，
+    默认按 C 大调记谱（小调素材请显式传 ``--key 'a minor'``）。
+    """
+    from smartnotegen.score import Score
+    from smartnotegen.score_export import (
+        SCORE_FORMATS,
+        THEMES,
+        ScoreExportOptions,
+        export_score,
+    )
+
+    if list_formats:
+        typer.echo("可用谱面格式：")
+        for name, desc in SCORE_FORMATS.items():
+            typer.echo(f"  {name:11s} {desc}")
+        typer.echo("别名：all = 全部；xml = musicxml；txt = jianpu-txt")
+        typer.echo("可用主题：" + "、".join(f"{k}（{v}）" for k, v in THEMES.items()))
+        return
+
+    source = Path(midi).expanduser()
+    if not source.exists():
+        raise InputFileError(f"MIDI 文件不存在: {source}")
+
+    clefs = _parse_clef_overrides(clef)
+    score = Score.from_midi(
+        source,
+        title=title,
+        composer=composer or "",
+        key=key or "C major",
+        time_signature=time_signature or "4/4",
+        bars=bars,
+        clefs=clefs or None,
+    )
+    options = ScoreExportOptions(
+        formats=format,
+        theme=theme,
+        scale=scale,
+        page_width=page_width,
+        space=space,
+        show_title=not no_title,
+        show_tempo=not no_tempo,
+        show_measure_numbers=not no_measure_numbers,
+        show_ties=not no_ties,
+    )
+    target_dir = Path(output_dir).expanduser() if output_dir else source.parent
+    written = export_score(score, target_dir, source.stem, options)
+
+    typer.echo(
+        f"✅ 谱面已生成: {score.title}（{score.bars} 小节 / {score.note_count} 音 / "
+        f"{len(score.tracks)} 轨 / {score.key}）"
+    )
+    for name, path in written.items():
+        typer.echo(f"   {name:11s} -> {path}")
+
+
+def _export_score_for(
+    seq, midi_path, formats: str, theme: str, key: Optional[str]
+) -> dict:
+    """``generate midi/melody --score`` 的谱面导出：与 MIDI 同目录同主干。
+
+    与 ``pipeline --score`` 的策略差异（有意为之）：这里**失败即抛出**。``--score``
+    是本命令的显式请求，静默降级会让用户以为产物已生成；而 pipeline 的主产物是音频，
+    谱面属附加物，故那边只告警。
+
+    Args:
+        seq: 生成出的 ``NoteSequence``。
+        midi_path: 刚落盘的 .mid 路径。
+        formats: 格式串（``ScoreExportOptions`` 会归一化）。
+        theme: 配色名。
+        key: 记谱调式覆盖。
+
+    Returns:
+        ``{格式: 绝对路径}``。
+    """
+    from smartnotegen.score_export import (
+        ScoreExportOptions,
+        export_score,
+        score_from_sequence,
+    )
+
+    target = Path(midi_path)
+    score = score_from_sequence(seq, title=target.stem, key=key)
+    return export_score(
+        score, target.parent, target.stem, ScoreExportOptions(formats=formats, theme=theme)
+    )
+
+
+def _parse_clef_overrides(items: Optional[List[str]]) -> dict:
+    """把 ``--clef '谱表名=treble'`` 解析为 ``{名称: 谱号}``。
+
+    Raises:
+        ParameterError: 缺少 ``=``、谱号名非法、或同一谱表重复指定。
+    """
+    allowed = {"treble", "bass", "alto", "tenor"}
+    out: dict = {}
+    for item in items or []:
+        if "=" not in item:
+            raise ParameterError(f"--clef 需要 '谱表名=谱号' 形式，实为 {item!r}")
+        name, _, value = item.partition("=")
+        name, value = name.strip(), value.strip().lower()
+        if not name:
+            raise ParameterError(f"--clef 的谱表名不可为空: {item!r}")
+        if value not in allowed:
+            raise ParameterError(
+                f"--clef 的谱号须为 {'/'.join(sorted(allowed))} 之一，实为 {value!r}"
+            )
+        if name in out:
+            raise ParameterError(f"--clef 重复指定谱表 {name!r}")
+        out[name] = value
+    return out
 
 
 @app.command("errors", help="打印错误码表")

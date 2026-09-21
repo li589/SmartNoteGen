@@ -255,6 +255,8 @@ _CLI_OVERRIDE_MAP: dict[str, tuple[str, str]] = {
     "device": ("ai", "device"),
     "model_size": ("ai", "model_size"),
     "diffrhythm_chunked": ("ai", "diffrhythm_chunked"),
+    # preview (P3-A1)
+    "preview_enabled": ("preview", "enabled"),
 }
 
 #: 合法 section 集合（_merge_dict 校验用）

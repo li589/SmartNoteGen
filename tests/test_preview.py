@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pytest
 import soundfile as sf
@@ -181,3 +183,73 @@ def test_generate_batch_with_spectrogram(tmp_path):
     html_path = gen.generate_batch(items, tmp_path / "out4")
     html = open(html_path, encoding="utf-8").read()
     assert "spectrogram" in html
+
+
+# ---------------------------------------------------------------------------
+# 谱面内嵌（#12）
+# ---------------------------------------------------------------------------
+
+_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>'
+
+
+def _items_from(html: str) -> list[dict]:
+    """把页面里 ``const items = <json>;`` 反序列化出来。
+
+    直接对整页做字符串包含判断会被 JSON 转义骗到（``"`` 变成 ``\\"``），
+    所以这里解回 Python 对象再比对。
+    """
+    marker = "const items = "
+    start = html.index(marker) + len(marker)
+    end = html.index("\n", start)
+    raw = html[start:end].rstrip()
+    if raw.endswith(";"):
+        raw = raw[:-1]
+    return json.loads(raw)
+
+
+def test_generate_for_embeds_score_svg_inline(tmp_path):
+    """传入 score_svg 时应内联进卡片（折叠区 + 白色衬底），而非 <img src=data:>。"""
+    wav = _write_sine_wav(tmp_path)
+    gen = PreviewGenerator()
+    gen.generate_for(wav, {"BPM": 120}, tmp_path / "sc", label="a.wav", score_svg=_SVG)
+    html = (tmp_path / "sc" / "preview.html").read_text(encoding="utf-8")
+    assert "score-wrap" in html
+    assert "五线谱谱面" in html
+    assert _items_from(html)[0]["score_svg"] == _SVG
+    assert "data:image/svg" not in html
+
+
+def test_generate_for_omits_score_svg_when_not_given(tmp_path):
+    wav = _write_sine_wav(tmp_path)
+    gen = PreviewGenerator()
+    gen.generate_for(wav, {"BPM": 120}, tmp_path / "no", label="a.wav")
+    html = (tmp_path / "no" / "preview.html").read_text(encoding="utf-8")
+    assert _items_from(html)[0]["score_svg"] == ""
+
+
+def test_score_svg_survives_json_roundtrip_with_quotes(tmp_path):
+    """SVG 里含引号/中文也得能原样穿过 json.dumps -> json.loads。"""
+    wav = _write_sine_wav(tmp_path)
+    tricky = '<svg xmlns="http://www.w3.org/2000/svg"><text>夜曲 "Op.1" ♪</text></svg>'
+    gen = PreviewGenerator()
+    gen.generate_for(wav, {}, tmp_path / "esc", label="a.wav", score_svg=tricky)
+    html = (tmp_path / "esc" / "preview.html").read_text(encoding="utf-8")
+    assert _items_from(html)[0]["score_svg"] == tricky
+
+
+def test_generate_batch_tolerates_items_without_score_svg(tmp_path):
+    """batch 路径的项目没有 score_svg 键，卡片渲染分支必须容得下。"""
+    wav = _write_sine_wav(tmp_path)
+    gen = PreviewGenerator()
+    audio, sr = gen._load_audio(wav)
+    items = [{
+        "label": "b.wav",
+        "audio_base64": gen._audio_to_base64(wav),
+        "waveform": gen._compute_waveform(audio),
+        "spectrogram": gen._compute_spectrogram(audio, sr),
+        "metadata": {},
+        "features": {"rms_db": -10.0, "peak_db": -1.0, "spectral_centroid": 440.0, "band_energy": {}},
+    }]
+    html = open(gen.generate_batch(items, tmp_path / "b1"), encoding="utf-8").read()
+    assert "item.score_svg" in html  # JS 侧做了存在性判断
+    assert ".score-svg svg" in html  # 内联 SVG 的响应式缩放规则已就位

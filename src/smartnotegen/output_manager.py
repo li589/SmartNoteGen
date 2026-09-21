@@ -30,7 +30,7 @@ class ArtifactMeta:
     """单个产物的元数据（写入 metadata.json 的 artifacts 数组）。"""
 
     path: str
-    kind: str  # "midi" | "wav" | "suno" | "draft" | "metadata"
+    kind: str  # "midi" | "wav" | "suno" | "draft" | "metadata" | "score_*"
     params: Dict[str, Any] = field(default_factory=dict)
     seed: Optional[int] = None
     seq: int = 1

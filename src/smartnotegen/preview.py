@@ -128,6 +128,7 @@ class PreviewGenerator:
         metadata: dict[str, Any],
         output_dir: str | Path,
         label: str = "",
+        score_svg: str = "",
     ) -> str:
         """为单个 WAV 生成预览页。
 
@@ -136,6 +137,9 @@ class PreviewGenerator:
             metadata: 元数据字典（用于展示）。
             output_dir: 输出目录（preview.html 写入此目录）。
             label: 显示标签，为空时用文件名。
+            score_svg: 可选，五线谱 SVG 文本；非空时在卡片内以折叠区**内联**展示
+                （内联而非 ``<img src=data:>``：内联 SVG 随容器缩放、可选中文本，
+                且深色主题下靠自身白底保证可读）。
 
         Returns:
             preview.html 的绝对路径。
@@ -164,6 +168,7 @@ class PreviewGenerator:
             "spectrogram": spectrogram,
             "metadata": dict(metadata),
             "features": asdict(features),
+            "score_svg": score_svg or "",
         }
 
         html = self._build_html([item], is_batch=False)
@@ -362,6 +367,25 @@ class PreviewGenerator:
     font-size: 0.8em;
     margin-right: 4px;
   }}
+  .score-wrap {{ margin-top: 12px; }}
+  .score-wrap > summary {{
+    cursor: pointer;
+    font-size: 0.85em;
+    color: #8899cc;
+    padding: 4px 0;
+    user-select: none;
+  }}
+  .score-wrap > summary:hover {{ color: #aaccff; }}
+  .score-svg {{
+    background: #ffffff;
+    border-radius: 6px;
+    padding: 10px;
+    margin-top: 8px;
+    overflow-x: auto;
+    border: 1px solid #2a3a5e;
+  }}
+  /* 内联 SVG 随容器缩放；谱面本身是固定像素画布，不缩会溢出卡片 */
+  .score-svg svg {{ max-width: 100%; height: auto; display: block; }}
 </style>
 </head>
 <body>
@@ -462,6 +486,14 @@ function buildCard(item, idx) {{
   html += `<div class="spectrogram-wrap" id="spec-${{idx}}">`;
   html += `<canvas id="spec-canvas-${{idx}}" class="spectrogram" width="800" height="80"></canvas>`;
   html += `</div>`;
+
+  // 五线谱谱面（可选，内联 SVG）
+  if (item.score_svg) {{
+    html += `<details class="score-wrap">`;
+    html += `<summary>五线谱谱面（点击展开）</summary>`;
+    html += `<div class="score-svg">${{item.score_svg}}</div>`;
+    html += `</details>`;
+  }}
 
   // 音频
   html += `<audio id="audio-${{idx}}" preload="none" style="display:none"></audio>`;

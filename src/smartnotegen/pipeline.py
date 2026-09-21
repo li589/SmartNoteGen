@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional
@@ -30,6 +30,12 @@ from smartnotegen.models.midi import MidiDocument
 from smartnotegen.output_manager import ArtifactMeta, OutputManager, RunMeta
 from smartnotegen.preview import PreviewGenerator
 from smartnotegen.render.fluidsynth import FluidSynthRenderer
+from smartnotegen.score_export import (
+    ScoreExportOptions,
+    export_score,
+    score_from_sequence,
+    score_svg_text,
+)
 
 logger = get_logger("pipeline")
 
@@ -51,6 +57,8 @@ class PipelineResult:
     key: str = ""
     style: str = ""
     format: str = ""
+    #: ``{谱面格式: 绝对路径}``；未启用 --score 时为空（#12）
+    score_paths: Dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, object]:
         return field_dict(self)
@@ -70,6 +78,10 @@ class Pipeline:
         project: Optional[str] = None,
         output_dir: Optional[str | Path] = None,
         dry_run: bool = False,
+        score: bool = False,
+        score_format: str = "svg",
+        score_theme: str = "light",
+        score_key: Optional[str] = None,
     ) -> None:
         """初始化。
 
@@ -78,11 +90,20 @@ class Pipeline:
             project: 项目名（P2-5，--project 覆盖）。
             output_dir: 输出根目录覆盖（--output-dir）。
             dry_run: True 时不写任何产物、不调用 subprocess，仅规划并打印（M-1f）。
+            score: True 时在 MIDI 旁产出谱面，并把五线谱 SVG 内嵌进预览页（#12）。
+            score_format: 谱面格式（逗号分隔，见 ``commands.score_export``）。
+            score_theme: 谱面配色 light / dark。
+            score_key: 记谱调式覆盖；None 时用生成请求的调式。
         """
         self.config = config
         self.project = project
         self.output_dir = output_dir
         self.dry_run = dry_run
+        # 选项在构造期就校验：参数写错要立刻失败，别等到渲染完 60 秒后才报错
+        self.score_options = (
+            ScoreExportOptions(formats=score_format, theme=score_theme) if score else None
+        )
+        self.score_key = score_key
 
     def run(
         self,
@@ -163,6 +184,15 @@ class Pipeline:
             tmp_dir = Path(tempfile.mkdtemp(prefix="sng_tmp_", dir=str(tmp_root)))
             midi_path = Path(MidiDocument.from_sequence(seq).write(midi_plan))
 
+            # 3b. 谱面产物（#12，--score）：与 MIDI 同目录同主干；失败只告警不阻断音频
+            score_artifacts: list[ArtifactMeta] = []
+            score_svg = ""
+            score_written: Dict[str, str] = {}
+            if self.score_options is not None:
+                score_artifacts, score_svg, score_written = self._export_score(
+                    seq, midi_path, seq_no, request.seed
+                )
+
             # 4. 渲染 WAV（真实引擎；renderer 内部解析 module 路径 + 双音色库回退）
             renderer = FluidSynthRenderer(
                 fluidsynth_path=self.config.paths.fluidsynth,
@@ -195,6 +225,7 @@ class Pipeline:
                 key=request.key,
                 style=request.style,
                 format=opts.format,
+                score_paths=dict(score_written),
             )
             if self.config.output.metadata:
                 output_manager.write_metadata(
@@ -229,6 +260,7 @@ class Pipeline:
                             duration_s=meta["duration_s"],
                             sample_rate=meta["sample_rate"],
                         ),
+                        *score_artifacts,
                     ],
                 )
 
@@ -249,6 +281,7 @@ class Pipeline:
                         },
                         output_manager.root(),
                         label=Path(final_path).name,
+                        score_svg=score_svg,
                     )
                     logger.info("预览页: %s", preview_path)
                 except Exception as exc:  # 预览失败不阻断管线
@@ -263,6 +296,46 @@ class Pipeline:
                     tmp_root.rmdir()
                 except OSError:
                     pass
+
+    # -- 谱面（#12）--------------------------------------------------------
+
+    def _export_score(self, seq, midi_path: Path, seq_no: int, seed: Optional[int]):
+        """在 MIDI 旁产出谱面，并返回（元数据条目, 供预览内嵌的 SVG 文本, 路径表）。
+
+        从 ``NoteSequence`` 直接构建 Score（不回读刚写的 .mid）：省一次磁盘往返，
+        且与 ``score`` 子命令走同一套 ``Score`` 装配逻辑，结论一致。
+
+        **失败策略：告警不阻断**。管线的主产物是音频；谱面是附加物，任何失败
+        （含未装 Pillow）只记 warning，音频与导出照常完成。用户显式要谱面时可在
+        结束后从日志看到原因；要「失败即退出」请改用 ``smartnotegen score``。
+
+        Returns:
+            ``([ArtifactMeta, ...], svg_text, {format: path})``；失败时返回 ``([], "", {})``。
+        """
+        assert self.score_options is not None  # 调用点已判空
+        try:
+            score = score_from_sequence(seq, title=Path(midi_path).stem, key=self.score_key)
+            written = export_score(score, midi_path.parent, midi_path.stem, self.score_options)
+            svg = score_svg_text(score, self.score_options)
+        except Exception as exc:  # noqa: BLE001 - 谱面失败不应影响音频交付
+            logger.warning("谱面生成失败（不影响音频产物）: %s", exc)
+            return [], "", {}
+
+        labels = {
+            "svg": "score_svg", "png": "score_png", "jianpu": "score_jianpu",
+            "jianpu-png": "score_jianpu_png", "jianpu-txt": "score_jianpu_txt",
+            "musicxml": "score_musicxml",
+        }
+        artifacts = [
+            ArtifactMeta(
+                path=path, kind=labels.get(name, f"score_{name}"),
+                params={"format": name, "key": score.key, "bars": score.bars},
+                seed=seed, seq=seq_no, duration_s=score.duration_seconds(),
+            )
+            for name, path in written.items()
+        ]
+        logger.info("谱面: %s", "、".join(Path(p).name for p in written.values()))
+        return artifacts, svg, dict(written)
 
     # -- DSP（P2-1）--------------------------------------------------------
 
