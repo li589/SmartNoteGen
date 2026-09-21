@@ -27,6 +27,7 @@ mp3 = ["lameenc==1.8.4"]
 dev = ["pytest==9.1.1", "pytest-cov==7.1.0", "ruff==0.11.0"]
 
 [project.scripts]
+sunoaux = "sunoauxtool.aggregate:app"        # 聚合入口（pre/post，R3）
 sunoauxtool = "sunoauxtool.cli:app"
 smartnotegen = "sunoauxtool.cli:app"        # 旧入口名，兼容保留
 videomaker = "sunoauxtool.video.cli:app"    # 旧入口名，兼容保留
@@ -34,9 +35,8 @@ downloadhelper = "sunoauxtool.download.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-# Suno-Cat-Catch-Resolve 是 src/ 下的独立 editable 兄弟包（与 smartnotegen / videomaker 并列），
-# 由 src/Suno-Cat-Catch-Resolve/pyproject.toml 单独打包。其目录名含连字符、不是合法包名，
-# 主包必须排除，否则打包时会收录成非法包名。
+# versatile_audio_super_resolution 是 src/ 下的 AudioSR 上游克隆（自带内嵌 .git），
+# R5 入库时清理后再收编；当前阶段必须排除，否则打包/嵌入仓库告警。
 exclude = ["versatile_audio_super_resolution*"]
 
 [tool.pytest.ini_options]
@@ -65,7 +65,7 @@ extend-exclude = ["src/versatile_audio_super_resolution"]
 
 [tool.pyright]
 pythonVersion = "3.12"
-include = ["src/smartnotegen"]
+include = ["src/sunoauxtool"]
 exclude = ["venv", "tests"]
 # 不强制严格模式，仅作静态检查辅助
 typeCheckingMode = "basic"

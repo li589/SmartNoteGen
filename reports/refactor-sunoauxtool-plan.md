@@ -72,19 +72,24 @@
 - ⏳ **本地目录改名 `D:\New\Music\SmartNoteGen` → `SunoAuxTool`**：推迟到 R8 收口后
   一次性做（改名会使本会话工作区与 venv 绝对路径失效；需重建 venv + editable ×3 重装）
 
-### Phase R2 — 品牌与文档层
-- [ ] README 重写定位（前期/后期能力矩阵）
-- [ ] docs/ 各文件标题与定位语；CHANGELOG 加条目
-- [ ] CLI 欢迎语/`--help` 描述更新
+### Phase R2 — 品牌与文档层（✅ 2026-09-21 完成，commit 899c7db）
+- [x] README 重写定位（前期/后期能力矩阵）
+- [x] docs/ 各文件标题与定位语；CHANGELOG 加条目
+- [x] CLI 欢迎语/`--help` 描述更新
 - 验收：`grep -ri smartnotegen docs/ README.md` 只剩包名类引用
+- 遗留（有意保留）：`SmartNoteGenError` 类名 / `[ti:SmartNoteGen]` lrc 标签等
+  API 与测试兼容引用，按「破坏最小化」原则不随 R2 改，待 R8 收口时统一裁定。
 
-### Phase R3 — 顶层聚合 CLI（后期能力的统一入口）
-- [ ] 新增顶层 Typer 入口（名字待定，见 §4-Q2），子命令组映射现有能力：
-  - `pre`：`melody` / `midi` / `score` / `render` / `transcribe`（→ 现 generate/score/render/transcribe）
-  - `post`：`fetch`（猫抓）/ `convert`（转码）/ `dsp`（R6）/ `video`（→ videomaker render）/ `enhance`（→ VASR，R5）
-- [ ] 实现为**薄转发层**：只做参数映射与错误码统一，不复制业务逻辑（核心层不得反向依赖 CLI 层的既定铁律延续）
-- [ ] 旧入口 `smartnotegen` / `videomaker` 保留（兼容期 ≥1 个版本）
-- 验收：每个新子命令有 2+ 例端到端测试（mock 引擎），旧入口测试零改动通过
+### Phase R3 — 顶层聚合 CLI（后期能力的统一入口）（✅ 2026-09-21 完成）
+- [x] 新增顶层 Typer 入口 **`sunoaux`**（§4-Q2 采纳推荐名），子命令组映射现有能力：
+  - `pre`：`melody` / `midi` / `score` / `render` / `transcribe`（→ generate melody/midi、score、render、transcribe）
+  - `post`：`probe` / `convert`（→ decode）/ `fetch`（→ batch）/ `video render|multi`
+    / `dsp`（R6 占位，exit 1）/ `enhance`（R5 占位，exit 1）
+- [x] 实现为**薄转发层**：`aggregate.py` 直接二次注册既有命令函数
+  （Typer command 装饰器返回原函数；mock 打在原模块依然生效——函数 `__globals__`
+  指向定义处），零参数复制、零业务逻辑
+- [x] 旧入口 `smartnotegen` / `videomaker` / `downloadhelper` / `sunoauxtool` 保留（兼容期 ≥1 个版本）
+- 验收：`tests/test_aggregate_cli.py` 24 例（每子命令 2+，含真实引擎 e2e 与错误码透传）；旧入口测试零改动通过
 
 ### Phase R4 — Python 包名迁移（手术最大，可选/可延后）
 - [ ] `smartnotegen` → `sunoauxtool`（或 `sat.core`）：机械替换 import + pyproject + 守卫测试

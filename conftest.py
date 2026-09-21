@@ -1,4 +1,4 @@
-"""pytest 根 conftest：保证 src/ 布局下 smartnotegen 可导入（无需先 pip install -e .）。"""
+"""pytest 根 conftest：保证 src/ 布局下 sunoauxtool 可导入（无需先 pip install -e .）。"""
 
 import sys
 from pathlib import Path

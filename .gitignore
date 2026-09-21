@@ -57,3 +57,6 @@ Thumbs.db
 module/diffrhythm/
 module/espeak-install.log
 spike/
+
+# ===== AudioSR 上游克隆（R5 入库时删内嵌 .git 后再收编，暂不跟踪）=====
+src/versatile_audio_super_resolution/

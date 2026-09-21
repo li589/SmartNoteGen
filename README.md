@@ -57,6 +57,15 @@ smartnotegen pipeline
 # → 打印：文件路径 + 元数据（时长/采样率/位深/和弦进行/seed）
 ```
 
+也可以用聚合入口 `sunoaux`（v0.7.0 起）：`pre` = 前期创作，`post` = 后期处理
+（详见 `sunoaux --help`）：
+
+```bash
+sunoaux pre midi --chords C-G-Am-F      # = smartnotegen generate midi
+sunoaux post convert cache/song.mp3     # = downloadhelper decode（fMP4 转码）
+sunoaux post video render song.wav      # = videomaker render（音乐视频）
+```
+
 ---
 
 ## 子命令一览

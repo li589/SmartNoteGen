@@ -18,6 +18,10 @@
 - 环境变量 `SUNO_FFMPEG` / `SMARTNOTEGEN_FFMPEG` / `SUNO_FFMPEG_DIRS` 全部保留。
 
 ### 新增
+- **聚合 CLI 入口 `sunoaux`（R3）**：`pre`（melody/midi/score/render/transcribe，前期创作）
+  + `post`（probe/convert/fetch/video/dsp/enhance，后期处理）两组子命令，统一入口。
+  薄转发层（`sunoauxtool.aggregate`）直接二次注册既有命令函数——零参数复制、零业务逻辑、
+  错误码原样透传；`post dsp` / `post enhance` 为 R6/R5 交付占位（干净失败 exit 1）。
 - `requirements` 层面：主包依赖新增 `pillow`（video 子模块需要，原为 videomaker 隐式依赖）。
 
 ### 测试
