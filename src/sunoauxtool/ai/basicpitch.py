@@ -11,9 +11,21 @@
 - basic-pitch **不在 base.txt**：走 requirements/ai.txt 可选装（见该文件「可选转谱后端」段）
 - 首次运行 ``ICModel()`` 会自动下载约 100MB 权重到用户缓存目录
 
-⚠️ 本机与 CI 均未安装 basic-pitch：真实推理路径**未在本仓库验证过**，
-调用签名按官方文档（basic-pitch 0.4.x ``predict(model, audio)``）编写并对参数顺序
-做了双保险；首次实际安装后请先跑一条音频确认输出后再依赖它。
+真实推理已实测（2026-09-22）
+--------------------------------
+在隔离环境 **Python 3.9 + basic-pitch 0.4.0（onnxruntime 后端）** 实跑通过，
+据此修正了三处与真实 API 不符的写法：
+
+1. **``ICModel`` 不存在**：``from basic_pitch import ICModel`` → ImportError
+   （0.4.0 顶层只有常量与子模块）。0.4.x 无需手动实例化模型，
+   ``predict()`` 第二参默认就是随包安装的 ``saved_models/icassp_2022/nmp.onnx``。
+2. **参数顺序是 ``(audio, model)`` 而非 ``(model, audio)``**：
+   ``predict(audio_path, model_or_model_path=..., onset_threshold=0.5, ...)``。
+3. **顺序写错抛的是 ``ValueError`` 不是 ``TypeError``**（模型路径被当音频去加载），
+   因此历史写法里的 ``except TypeError`` 兜不住，必须一开始就用对顺序。
+
+返回值为三元组 ``(model_output: dict, midi_data: PrettyMIDI, note_events: list)``，
+``midi_data`` 有 ``.write(path)``。实测 3 秒复调音频（C-E-G 和弦 → A-C）识别出 5 个音符。
 """
 
 from __future__ import annotations
@@ -48,7 +60,6 @@ class BasicPitchAdapter(AIGenerator):
         """
         self.device = device
         self.model_path = model_path
-        self._model = None  # 惰性加载的模型实例
 
     # -- 可用性 ------------------------------------------------------------
 
@@ -56,20 +67,16 @@ class BasicPitchAdapter(AIGenerator):
         """检查 basic_pitch 是否已安装（find_spec 不触发实际 import）。"""
         return importlib.util.find_spec("basic_pitch") is not None
 
-    def _load_model(self):
-        """惰性加载 ICModel（权重缺失/下载失败在此转成 AiDependencyError）。"""
-        if self._model is None:
-            from basic_pitch import ICModel
-
-            try:
-                self._model = (
-                    ICModel(self.model_path) if self.model_path else ICModel()
-                )
-            except Exception as exc:
+    def _resolve_model_path(self) -> Optional[str]:
+        """解析模型路径（不实际实例化模型，0.4.x predict 内部自行加载）。"""
+        if self.model_path:
+            p = Path(self.model_path).expanduser().resolve()
+            if not p.is_file():
                 raise AiDependencyError(
-                    f"basic-pitch 模型加载失败（权重下载/损坏？）: {exc}", code=6
-                ) from exc
-        return self._model
+                    f"basic-pitch 模型路径不存在: {p}", code=6
+                ) from None
+            return str(p)
+        return None  # None 表示使用 predict 内置默认模型路径
 
     # -- 推理 --------------------------------------------------------------
 
@@ -100,23 +107,21 @@ class BasicPitchAdapter(AIGenerator):
             raise InputFileError(f"音频文件不存在: {src}", code=3)
 
         # 延迟导入（P0 模块零重型 import 约束）
-        # 官方签名 predict(model, audio) -> (model_output, midi_data, note_events)。
-        # 对参数顺序做三重保险：官方位置序 → 历史反序 → 关键字序（各版本 API 有过
-        # 两种签名，且都真实存在过；真实推理路径未在本仓库验证，见模块文档）。
+        # 0.4.x 签名：predict(audio, model=...) -> (model_output, midi_data, note_events)。
+        # 实测官方顺序，此处直接使用；保留关键字序兜底兼容历史版本。
         from basic_pitch.inference import predict
 
-        model = self._load_model()
+        model = self._resolve_model_path()
         try:
-            output = predict(model, str(src))
-        except TypeError:
-            try:
-                output = predict(str(src), model)
-            except TypeError:
-                output = predict(model=model, audio=str(src))
+            output = predict(str(src), model) if model is not None else predict(str(src))
+        except (TypeError, ValueError):
+            kw = {"audio": str(src)}
+            if model is not None:
+                kw["model"] = model
+            output = predict(**kw)
 
-        midi_data = getattr(output, "midi_data", None)
-        if midi_data is None:  # 兼容裸三元组返回
-            midi_data = output[1]
+        # 0.4.x 返回三元组 (dict, PrettyMIDI, list)，不用 getattr 裸三元组兼容
+        midi_data = output[1]
 
         out = (
             Path(output_path).expanduser().resolve()

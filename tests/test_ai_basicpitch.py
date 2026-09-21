@@ -13,7 +13,6 @@ import importlib.util
 import sys
 import types
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -77,11 +76,8 @@ class FakeMidiData:
 def _install_fake_basic_pitch(monkeypatch, predict) -> FakeMidiData:
     """往 sys.modules 塞假的 basic_pitch / basic_pitch.inference。"""
     fake_top = types.ModuleType("basic_pitch")
-    fake_top.ICModel = lambda *a, **kw: SimpleNamespace(name="fake-model")
-
     fake_inf = types.ModuleType("basic_pitch.inference")
     fake_inf.predict = predict
-
     fake_top.inference = fake_inf
     monkeypatch.setitem(sys.modules, "basic_pitch", fake_top)
     monkeypatch.setitem(sys.modules, "basic_pitch.inference", fake_inf)
@@ -89,14 +85,15 @@ def _install_fake_basic_pitch(monkeypatch, predict) -> FakeMidiData:
 
 
 def test_transcribe_full_flow_with_fake(monkeypatch, tmp_path: Path):
+    """真实 0.4.x 签名：predict(audio, model) 返回三元组 (dict, PrettyMIDI, list)。"""
     wav = tmp_path / "in.wav"
     wav.write_bytes(b"RIFF")
     midi = FakeMidiData()
     calls: list[tuple] = []
 
-    def predict(model, audio):
-        calls.append((model, audio))
-        return SimpleNamespace(model_output=None, midi_data=midi, note_events=[])
+    def predict(audio, model=None):
+        calls.append((audio, model))
+        return ({}, midi, [])  # (model_output, midi_data, note_events)
 
     _install_fake_basic_pitch(monkeypatch, predict)
     adapter = BasicPitchAdapter()
@@ -107,19 +104,21 @@ def test_transcribe_full_flow_with_fake(monkeypatch, tmp_path: Path):
     assert Path(written) == out.resolve()
     assert out.is_file()
     assert midi.written == [out.resolve()]
-    # 官方签名 predict(model, audio)：模型在前，音频路径已 resolve
-    assert calls[0][1] == str(wav.resolve())
+    # 0.4.x 签名：音频在前
+    assert calls[0][0] == str(wav.resolve())
+    assert calls[0][1] is None  # model_path=None 时不传第二个位置参数
 
 
-def test_transcribe_argument_order_fallback(monkeypatch, tmp_path: Path):
-    """兼容 (audio, model) 历史参数顺序：第一顺位 TypeError 时自动换位重试。"""
+def test_transcribe_keyword_fallback(monkeypatch, tmp_path: Path):
+    """兼容旧 keyword-only 签名：位置序抛 TypeError 时自动退到关键字序。"""
     wav = tmp_path / "in.wav"
     wav.write_bytes(b"RIFF")
     midi = FakeMidiData()
+    calls: list[tuple] = []
 
-    def predict(audio, *, model):  # audio 在前、model 仅限关键字的历史签名
-        assert isinstance(audio, str) and isinstance(model, SimpleNamespace)
-        return SimpleNamespace(midi_data=midi)
+    def predict(*, audio, model=None):  # 只接受关键字的历史签名
+        calls.append((audio, model))
+        return ({}, midi, [])
 
     _install_fake_basic_pitch(monkeypatch, predict)
     adapter = BasicPitchAdapter()
@@ -127,21 +126,16 @@ def test_transcribe_argument_order_fallback(monkeypatch, tmp_path: Path):
 
     written = adapter.transcribe(str(wav))
     assert Path(written) == (tmp_path / "in_basicpitch.mid").resolve()
+    assert calls[0][0] == str(wav.resolve())
 
 
-def test_model_load_failure_wraps_as_dependency_error(monkeypatch, tmp_path: Path):
-    """ICModel 构造失败（权重下载/损坏）→ AiDependencyError(6)，不裸抛。"""
-    fake_top = types.ModuleType("basic_pitch")
-
-    def boom(*a, **kw):
-        raise RuntimeError("weight download failed")
-
-    fake_top.ICModel = boom
-    monkeypatch.setitem(sys.modules, "basic_pitch", fake_top)
-    adapter = BasicPitchAdapter()
+def test_model_path_must_exist(monkeypatch, tmp_path: Path):
+    """显式模型路径不存在 → AiDependencyError(6)，不裸抛。"""
+    missing = tmp_path / "missing.onnx"
+    adapter = BasicPitchAdapter(model_path=str(missing))
     monkeypatch.setattr(BasicPitchAdapter, "is_available", lambda self: True)
     with pytest.raises(AiDependencyError) as exc:
-        adapter._load_model()
+        adapter._resolve_model_path()
     assert exc.value.code == 6
 
 
@@ -151,7 +145,7 @@ def test_generate_is_an_alias_of_transcribe(monkeypatch, tmp_path: Path):
     wav.write_bytes(b"RIFF")
     midi = FakeMidiData()
     _install_fake_basic_pitch(
-        monkeypatch, lambda model, audio: SimpleNamespace(midi_data=midi)
+        monkeypatch, lambda audio, model=None: ({}, midi, [])
     )
     adapter = BasicPitchAdapter()
     monkeypatch.setattr(BasicPitchAdapter, "is_available", lambda self: True)

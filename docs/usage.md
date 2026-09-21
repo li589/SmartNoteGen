@@ -1,6 +1,6 @@
 # SunoAuxTool 使用指南
 
-> 版本：v0.1.0（P0）｜ 配套文档：docs/PRD.md、docs/architecture.md、docs/task-plan.md
+> 版本：v0.1.0（P0）｜ 配套文档：docs/PRD.md、docs/archive/architecture-P0.md、docs/task-plan.md
 
 ---
 

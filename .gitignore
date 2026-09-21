@@ -1,5 +1,7 @@
 # ===== Python / 构建产物 =====
 venv/
+# 一次性验证用的隔离 venv（如 venv-bp39：basic-pitch/tensorflow，不污染主环境）
+venv-*/
 __pycache__/
 *.pyc
 *.pyo

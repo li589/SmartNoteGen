@@ -72,5 +72,10 @@ py3langid
 # 内置 transcribe 只做单旋律；复调（和弦/多乐器）用本后端：
 #   smartnotegen transcribe in.wav --backend basic-pitch   （未装 -> 退出码 6）
 # 首次运行 ICModel() 自动下载约 100MB 权重到用户缓存。
-# 注意：**未在本机实装验证**（2026-09-20 记），装时请锁定当时最新版本并先跑一条音频确认。
+# 注意：**已在本机实装验证**（2026-09-22，basic-pitch 0.4.0 / Py3.9 onnx 后端）：
+#   - predict(audio_path, model=...) 三元组签名，(model_output, midi_data, note_events)
+#   - ICModel 顶层类已移除；model_path=None 时用内置默认模型
+#   - 位置序优先，关键字回退；异常捕获 (TypeError, ValueError)
+#   - 3s C-E-G 合成音频 → 正确识别 A-C，5 个音，输 .mid 落盘成功
+# 若未装：pip install basic-pitch（需 Python ≤3.10 + onnxruntime 后端）
 basic-pitch
