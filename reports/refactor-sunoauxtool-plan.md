@@ -93,11 +93,25 @@
 - 验收：根套件与子包套件全绿；`pip install -e .` 后新旧 import 均可用
 
 ### Phase R5 — VASR 接入（音质提升/分离修复）
-- [ ] 按 AI 适配器既定模式包装（零顶层重 import、`is_available()`、缺依赖退出码 6）
-- [ ] CLI：`post enhance <wav>`（超分）/ `post separate <wav>`（分离，能力以摸底为准）
-- [ ] 入库策略见 §4-Q4；入库前必须清掉 153 处 ruff 问题或加独立 exclude
-- [ ] 真实推理路径在本机实跑一条并记录（对照 basicpitch「未验证」教训）
-- 验收：有 GPU/依赖环境跑通真实样本；无环境时优雅降级 + 文档写明
+- ✅ **兼容性验证（2026-09-21 实测，改写原方案）**：AudioSR 在主 venv 现代栈下
+  **直接可用，无版本冲突**——torch 2.5.1+cu121 / numpy 2.5.1 / transformers 4.49 /
+  librosa 0.10.2 全部通过：`import audiosr` ✓ → `build_model` ✓（2.6GB 权重下载 +
+  torch.load + 258.2M 参数加载）→ `super_resolution` 端到端 ✓（8s@12kHz → 10.24s@48kHz，
+  DDIM 50 步 42.2s GPU）。上游 main = 本地 HEAD（d312fba），无更新可拉。
+  - setup.py 的 `torch>=1.13.0` 本就开放；**真正过时的是三个钉死**：
+    `numpy<=1.23.5` / `librosa==0.9.2` / `transformers==4.30.2`（实测均可放开）；
+    `diffusers` git 依赖为**死依赖**（代码零引用，直接删）
+  - **唯一未来断点**：torch ≥2.6 将 `torch.load` 默认 `weights_only=True`——
+    仓内 13 处 `torch.load` 需补参数；停在 2.5.1 无影响（留 TODO 注释）
+  - timm 弃用警告（`timm.models.layers`）小修
+  - **R5 方案简化**：原「独立 venv 推理」前提不成立 → 主 venv 直调；入库 =
+    删嵌套 `.git`（记 fork 基线）+ ruff 153 处清理 + 重写 requirements +
+    薄适配器（延迟导入 + `is_available()` + 退出码 6）
+- [ ] 入库三步执行（见 R0 结论 + 上述修正）
+- [ ] CLI：`post enhance <wav>`（超分，`--model basic|speech`）；分离修复能力
+      以 AudioSR 实际功能为界（超分/高频重建，非人声分离——人声分离另行选型）
+- [ ] 真实推理路径已验证 ✓（2026-09-21，对照 basicpitch「未验证」教训已闭环）
+- 验收：适配器单测（mock 权重路径）+ 真实样本回归脚本
 
 ### Phase R6 — DSP 功能包（全新，先规格后实现）
 - [ ] 规格文档：响度归一（EBU R128 简化版）、淡入淡出、重采样、裁剪/拼接/交叉淡化、
