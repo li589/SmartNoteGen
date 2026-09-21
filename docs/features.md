@@ -25,7 +25,7 @@ suno-cat-catch-resolve                   （独立，CLI 自足；核心层零�
 
 ## 二、组件一：smartnotegen 0.5.4
 
-### 2.1 命令树（23 条命令）
+### 2.1 命令树（24 条命令）
 
 顶层选项：`--config/-c`、`--verbose`、`--quiet`、`--debug`、`--version`。
 所有命令统一由 `_guard` 包裹：异常 → 稳定退出码 + 分级日志（`--debug` 附堆栈）。
@@ -72,11 +72,12 @@ suno-cat-catch-resolve                   （独立，CLI 自足；核心层零�
 | `inspire rm` | 从库中移除（**不删文件**） |
 | `inspire export` | 导出灵感文件到指定目录 |
 
-#### 顶层（8）
+#### 顶层（9）
 
 | 命令 | 功能 |
 |---|---|
 | `render` | MIDI → WAV（FluidSynth + SoundFont，**真实引擎**） |
+| `score` | MIDI → 谱面（五线谱 SVG/PNG、简谱、MusicXML 4.0；6 格式，见 [score.md](score.md)） |
 | `pipeline` | 一键管线 generate → render → DSP → export（零参数可跑通 demo） |
 | `batch` | 批量生成多变体（随机化 + 可复现 + 失败隔离） |
 | `new` | 交互式引导生成新音乐（新手指南） |
@@ -106,7 +107,9 @@ suno-cat-catch-resolve                   （独立，CLI 自足；核心层零�
 | `export/audio.py` | 通用音频导出 |
 | `export/suno.py` | Suno 合规校验（时长 10–30s、采样率白名单、禁混响） |
 | `sunopack.py` | Suno 片段打包与清单 |
-| `preview.py` | HTML 预览页（含音频特征） |
+| `preview.py` | HTML 预览页（含音频特征；`pipeline --score` 时内嵌五线谱 SVG） |
+| `score/`（9 子模块） | 乐谱子系统：乐理 → 中间表示 → 排版 → 五线谱 / 简谱 / MusicXML / 位图 |
+| `score_export.py` | 谱面格式归一化与统一落盘（`score` 子命令 / `generate` / `pipeline` 共用） |
 | `output_manager.py` | 输出布局管理（`project/date` + seq 防覆盖 + `metadata.json`） |
 | `env.py` / `platform_paths.py` | 环境探测与**平台感知回落**（Windows 恒不触发 POSIX 分支） |
 | `styles/registry.py` + `styles/presets/*.toml` | 风格注册表与预设 |

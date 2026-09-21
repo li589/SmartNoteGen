@@ -60,6 +60,7 @@ smartnotegen pipeline
 | `generate midi` | 程序化多轨 MIDI（和弦/旋律/贝斯 [+鼓]） | `smartnotegen generate midi --chords C-G-Am-F --bpm 120 --seed 42` |
 | `generate melody` | music21 乐理旋律 + 变奏 | `smartnotegen generate melody --key "C major" --chords C-G-Am-F --variations 3` |
 | `render` | MIDI → WAV 渲染 | `smartnotegen render --input xxx.mid` |
+| `score` | MIDI → 谱面（五线谱 SVG/PNG、简谱、MusicXML） | `smartnotegen score song.mid --format all` |
 | `export suno` | Suno 合规导出（10–30s WAV/MP3） | `smartnotegen export suno --input xxx.wav --duration 25` |
 | `pipeline` | 一键闭环 generate→render→export | `smartnotegen pipeline`（零参数 demo） |
 | `config init` | 生成配置文件模板 | `smartnotegen config init` |
@@ -76,7 +77,8 @@ smartnotegen pipeline
 | `inspire` | 灵感库管理（SQLite 存储） | `smartnotegen inspire init` |
 | `errors` | 打印错误码表 | `smartnotegen errors` |
 
-完整参数说明见 [docs/usage.md](docs/usage.md)。
+完整参数说明见 [docs/usage.md](docs/usage.md)；乐谱生成（五线谱 / 简谱 / MusicXML）见
+[docs/score.md](docs/score.md)。
 
 ---
 
