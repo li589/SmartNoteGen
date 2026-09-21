@@ -144,8 +144,11 @@
   CHANGELOG（0.7.0 节改题为 1.0.0，测试基线刷新 1256 例 / 87.53%）、docs 校对
   （README 版本口径、features.md 历史快照标注）
 - [x] CI 全绿 + 推送 + tag v1.0.0
-- [x] 本地目录改名 `D:\New\Music\SmartNoteGen` → `D:\New\Music\SunoAuxTool`
-  （R1 遗留项；改名后 editable 重装恢复）
+- [ ] 本地目录改名（R1 遗留）：会话内执行失败——WorkBuddy 工作区进程占用目录
+  （Device or resource busy）。**手动步骤**：关闭本会话后
+  `ren D:\New\Music\SmartNoteGen SunoAuxTool`，然后在新目录
+  `venv\Scripts\python.exe -m pip install -e . --force-reinstall --no-deps`
+  （重生成入口 exe 的绝对路径）+ `python -m pytest -q` 冒烟。
 
 ---
 
