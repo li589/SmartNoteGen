@@ -168,6 +168,41 @@ smartnotegen ai diffrhythm --prompt "slow ballad" \
 - **DiffRhythm 草稿（含人声）不自动进入 Suno 导出链**（违反纯器乐合规），用途为"本地听感预览"。
 - 未安装 AI 依赖时，两命令给出安装指引并退出码 6，不触发 torch import。
 
+### 2.9 `score` — MIDI → 谱面（#12）
+
+```bash
+smartnotegen score <mid> [--format all|svg,png,jianpu,jianpu_svg,musicxml,text]
+                  [--key KEY] [--time-signature N/D] [--clef 轨道=treble|bass,...]
+                  [--out-dir DIR]
+```
+
+- 6 种格式：五线谱 SVG/PNG（**Pillow 渲染，非 matplotlib**）、简谱 SVG/PNG、
+  MusicXML 4.0（纯标准库）、简谱文本。
+- `generate midi|melody --score` 同目录落谱；`pipeline --score` 附加产物失败只告警。
+- 深度说明（分层架构、字体、校验）见 [docs/score.md](score.md)。
+
+### 2.10 `tempo` — 音频测速（#13）
+
+```bash
+smartnotegen tempo <wav> [--min-bpm 40] [--max-bpm 240] [--prior-bpm 120]
+```
+
+- numpy-only：onset 包络 → ACF → 节奏先验（log-Gaussian，中心 120BPM）消解
+  倍频歧义 → (bpm, phase) 联合梳状搜索。输出 `(bpm, confidence, beat_offset)`。
+- `--prior-bpm 0` 关闭先验；≥160BPM 素材在默认先验下会被折半，需显式指参。
+
+### 2.11 `transcribe` — WAV → MIDI 转谱（#13）
+
+```bash
+smartnotegen transcribe <wav> [-o out.mid] [--bpm auto|N] [--grid 1/16]
+                        [--backend builtin|basic-pitch] [--program 0]
+```
+
+- `builtin` 后端只适合**单旋律/主导声部**（谐波 salience + 相对凹谷切重复音 +
+  网格量化）；复调请用 `--backend basic-pitch`（可选依赖，未装退出码 6）。
+- 窗长 2048 / 帧中心时间戳：为 1/16 网格量化精度做的取舍（4096 会因窗尾泄漏
+  让音界提前 ~80ms）。
+
 ---
 
 ## 3. 配置文件详解

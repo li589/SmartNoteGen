@@ -2,6 +2,53 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 风格。
 
+## [0.6.0] - 2026-09-21（谱面子系统 + 音频分析 + videomaker 滚动谱面，#9–#14）
+
+### 新增（主包）
+- **谱面子系统 `src/smartnotegen/score/`（#9–#12）**：多轨谱面生成，四层架构
+  `theory → model(中间表示) → layout(排版) → drawing(共享绘制层) → svg/png/jianpu/musicxml`。
+  零第三方依赖，音乐字形全部自绘。
+  - 6 种导出格式：五线谱 SVG / PNG / 简谱 SVG / PNG / MusicXML / 简谱文本；
+    `score_export.py` 顶层共享导出服务（`generate --score` 与 `score` 命令共用）。
+  - **MusicXML 4.0 导出为纯标准库手写**（`score/musicxml.py`），带离线结构校验
+    （逐小节时间游标闭合）。
+  - **PNG 渲染使用 Pillow，而非 matplotlib**——绘图指令流（drawing 层）一次记录、
+    SVG 与 PNG 分别序列化，保证两种位图几何同源；选 Pillow 是因为零重量级传递依赖、
+    且与 videomaker 的帧渲染同栈。
+  - CLI：`smartnotegen score <mid> --format svg,png,jianpu,musicxml,...`，
+    `--clef` / `--key` / `--time-signature` 覆盖；非法调式/拍号前置校验为
+    ParameterError(1)。`generate midi|melody --score` 同目录落谱，
+    `pipeline --score` 显式请求失败即抛、附加产物失败只告警。
+- **音频分析 `src/smartnotegen/analysis/`（#13，numpy-only，无 librosa）**：
+  - `tempo` 命令：onset 包络 → ACF → 抛物线细化 → **节奏先验（log-Gaussian，
+    中心 120BPM）消解倍频歧义** → (bpm, phase) 联合梳状搜索。合成点击轨误差
+    ≤0.2%；真实 120BPM 素材测得 120.4。已知边界：≥160BPM 素材会被默认先验
+    折半（`--prior-bpm 0` 关闭）。
+  - `transcribe` 命令：内置单旋律/主导声部转谱（谐波 salience + 相对凹谷切重复音
+    + 网格量化）；复调交给可选 basic-pitch 后端（`ai/basicpitch.py` 延迟导入，
+    未装退出码 6；真实推理路径未在本仓库验证）。
+    窗长 2048（4096 因窗尾泄漏会让 1/16 量化必错），时间戳取帧中心。
+- **videomaker 0.4.0：`--style score` 滚动谱面 + `--tempo-grid`（#14）**：
+  - `visuals/score.py` `ScoreVisualizer`：由 `Score` 模型驱动（拍→秒预换算 +
+    逐帧 bisect 窗口查表），播放头居中、当前音高亮；staff（五线谱：符头+加线+
+    小节线）与 jianpu（简谱数字+变音+八度点，同时值和弦纵向堆叠）双记谱法
+    （`--notation`）。几何铁律：行中心对称 + 宽音域自动收缩半线距。
+  - `--tempo-grid`：接入 `analysis.tempo`（`estimate_bpm` + `beat_grid`），
+    底部节拍尺（小节首拍加粗）+ 头部 BPM 标注；滚动时间轴采用测速 BPM。
+  - 输入非 `.mid` 且未指 `--score-midi` 时 RenderError 明确报错。
+
+### 工程化
+- `spike/` 目录为谱面/简谱渲染期的原型产物（SVG/PNG 试验输出 + 试探脚本），
+  **刻意不入库**（不进版本控制）。
+- 根套件 1026 → **1046 例**（score 子系统 33 + analysis 54 + videomaker score
+  样式 19 等），本地覆盖率 **92.28%**（门槛 87%）。
+- 版本号对齐守卫扩展到三个包（smartnotegen / videomaker / Suno-Cat-Catch-Resolve），
+  含「已安装 editable 元数据 vs 源码」滞后检测（2026-09-20 实际踩中的漂移形态）。
+
+### 文档
+- `docs/score.md`（谱面生成指南）、`docs/videomaker.md`（新增 score 样式节）、
+  README 命令表补 `score` / `tempo` / `transcribe`。
+
 ## [Unreleased]
 
 ### 新增

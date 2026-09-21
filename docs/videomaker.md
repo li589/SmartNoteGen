@@ -58,6 +58,9 @@ videomaker render music.wav -p youtube -s spectrum --title "我的曲子" --logo
 | `--subtitle` | 副标题 | 无 |
 | `--output, -o` | 输出路径 | output/自动命名 |
 | `--width/--height/--fps` | 覆盖预设分辨率 | 预设值 |
+| `--score-midi` | score 样式的谱面 MIDI 路径（输入为 .mid 时可省略） | 无 |
+| `--tempo-grid` | 用测速 BPM 绘制节拍网格 + BPM 标注（score 样式） | 关 |
+| `--notation` | score 样式记谱法（staff=五线谱 / jianpu=简谱） | staff |
 
 ### multi 参数
 
@@ -88,6 +91,7 @@ videomaker render music.wav -p youtube -s spectrum --title "我的曲子" --logo
 | `reactive` | PIL 创意层 | 节拍脉冲圆 + 冲击扩散环 | 🎨 快 |
 | `tracks` | PIL 创意层 | **分轨频谱**（多轨垂直排列，色彩区分） | 🎨 快 |
 | `waveform_scroll` | PIL 创意层 | **滚动波形**（播放头居中，波形流动） | 🎨 快 |
+| `score` | PIL 创意层 | **滚动谱面**（五线谱/简谱，播放头居中、当前音高亮） | 🎨 快 |
 
 双引擎架构：waveform/spectrum 走 ffmpeg 原生滤镜（最快）；创意风格走 PIL 逐帧渲染 + rawvideo 管道直写 ffmpeg（v0.2.1 提速 26 倍：21s → 0.8s/3s 音频）。
 
@@ -150,6 +154,29 @@ videomaker render drums.wav "bass.mid:gain=0.8:pan=-0.3" "melody.mp3:gain=1.2:pa
 - 顶部显示轨名（默认文件名）
 
 配合混音 WAV，即可实现"视频 + 纯音频"双产物一次生成。
+
+---
+
+## 滚动谱面（v0.4）
+
+`--style score` 由 `smartnotegen.score` 的谱面数据驱动，逐帧渲染横向滚动谱面：
+- **播放头固定居中**，谱面随时间从右向左流动；正响的音高亮（主色+白描边）
+- 多轨垂直排列，五线谱谱号按轨道自动判定；宽音域自动收缩线距，不纵向溢出
+- `--notation staff`（默认）：五线谱（符头 + 加线 + 小节线）
+- `--notation jianpu`：简谱数字（1-7，变音加 `#`，八度加点；同时值和弦纵向堆叠）
+- `--tempo-grid`：用 `smartnotegen analysis.tempo` 测速，底部画节拍尺
+  （小节首拍加粗）并在头部标注实测 BPM；滚动时间轴同步采用测速 BPM
+
+```bash
+# 输入本身是 MIDI：谱面数据自动取自输入
+videomaker render song.mid -p douyin --style score --tempo-grid
+
+# 输入是渲染后的 WAV：用 --score-midi 指向对应 MIDI（否则报错）
+videomaker render song.wav -p youtube --style score --score-midi song.mid --notation jianpu
+```
+
+> 说明：谱面为可视化简化谱（不带符干/连杠/调号聚合），深度排版请用
+> `smartnotegen score` 命令导出 SVG/PNG/MusicXML（见 docs/score.md）。
 
 ---
 

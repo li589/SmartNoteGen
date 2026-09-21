@@ -61,6 +61,8 @@ smartnotegen pipeline
 | `generate melody` | music21 乐理旋律 + 变奏 | `smartnotegen generate melody --key "C major" --chords C-G-Am-F --variations 3` |
 | `render` | MIDI → WAV 渲染 | `smartnotegen render --input xxx.mid` |
 | `score` | MIDI → 谱面（五线谱 SVG/PNG、简谱、MusicXML） | `smartnotegen score song.mid --format all` |
+| `tempo` | 音频测速（ACF + 节奏先验，消倍频歧义） | `smartnotegen tempo song.wav` |
+| `transcribe` | WAV → MIDI 转谱（内置单旋律；复调用 basic-pitch） | `smartnotegen transcribe song.wav -o out.mid` |
 | `export suno` | Suno 合规导出（10–30s WAV/MP3） | `smartnotegen export suno --input xxx.wav --duration 25` |
 | `pipeline` | 一键闭环 generate→render→export | `smartnotegen pipeline`（零参数 demo） |
 | `config init` | 生成配置文件模板 | `smartnotegen config init` |
@@ -88,7 +90,7 @@ smartnotegen pipeline
 > 适配抖音/YouTube/Instagram/官网四大平台。非 AI，独立包，依赖 SmartNoteGen（单向）。
 
 **输入格式**：WAV / MP3 / FLAC / OGG / **MIDI**（MIDI 自动用 FluidSynth 渲染）
-**能力**：多轨混音（增益/声像/归一化）、分轨可视化、6 种视觉效果、多平台批量
+**能力**：多轨混音（增益/声像/归一化）、分轨可视化、滚动谱面（五线谱/简谱）、7 种视觉效果、多平台批量
 
 ```bash
 pip install -e src/videomaker      # 独立安装，需 ffmpeg
@@ -107,7 +109,9 @@ videomaker render drums.wav "bass.mid:gain=0.8:pan=-0.3" melody.mp3 \
 videomaker multi x.wav --presets douyin,youtube,instagram,official \
     --style circular_spectrum --logo logo.png
 
-# 6 种视觉效果：waveform / spectrum / circular_spectrum / reactive / tracks / waveform_scroll
+# 7 种视觉效果：waveform / spectrum / circular_spectrum / reactive / tracks / waveform_scroll / score
+# score 样式：滚动谱面（播放头居中、当前音高亮），--tempo-grid 叠加节拍网格 + BPM 标注
+videomaker render song.mid -p douyin --style score --tempo-grid --notation jianpu
 ```
 
 详见 [docs/videomaker.md](docs/videomaker.md)。
