@@ -56,6 +56,7 @@ class Compositor:
         title: str = "",
         subtitle: str = "",
         analysis=None,
+        visualizer_extra: Optional[dict] = None,
     ) -> str:
         """合成视频（双引擎路由）。
 
@@ -69,6 +70,8 @@ class Compositor:
             title: 标题文字（叠加在视频前 3s，淡入淡出）。
             subtitle: 副标题文字。
             analysis: 预计算 AudioAnalysis（v0.3 多轨模式注入；None 内部分析）。
+            visualizer_extra: 透传给 PIL Visualizer 构造器的额外参数
+                （#14 score 样式：score / beat_times / bpm / notation）。
 
         Returns:
             输出路径。
@@ -95,7 +98,7 @@ class Compositor:
                 fps=fps_rate,
             )
         else:
-            visualizer = create_visualizer(visual_style, cfg)
+            visualizer = create_visualizer(visual_style, cfg, **(visualizer_extra or {}))
             return self.frame_engine.render_with_visualizer(
                 visualizer,
                 audio_path,

@@ -50,6 +50,9 @@ def video(
     width: Optional[int] = None,
     height: Optional[int] = None,
     fps: Optional[int] = None,
+    score_midi: Optional[str] = None,
+    tempo_grid: bool = False,
+    notation: str = "staff",
 ) -> VideoResult:
     """生成音乐视频（双引擎路由；v0.3 支持多轨输入）。
 
@@ -59,13 +62,17 @@ def video(
         config: 配置对象（None 加载默认）。
         preset: 平台预设（douyin/youtube/instagram/official）。
         visual_style: 视觉效果（waveform/spectrum/circular_spectrum/reactive/
-            tracks/waveform_scroll）。
+            tracks/waveform_scroll/score）。
         title: 标题文字（前 3s 淡入淡出叠加）。
         subtitle: 副标题文字。
         chords: 和弦进行（元数据记录用）。
         bpm: BPM（元数据记录用）。
         seed: 随机种子（元数据记录用）。
         style: 风格名（元数据记录用）。
+        score_midi: score 样式的谱面 MIDI 路径（None 时输入音频本身
+            为 .mid 则直接用；否则报 RenderError）。
+        tempo_grid: 用测速 BPM 绘制节拍网格并标注 BPM（score 样式）。
+        notation: score 样式记谱法（staff=五线谱 / jianpu=简谱）。
 
     Returns:
         VideoResult 实例。
@@ -108,12 +115,47 @@ def video(
     #    ffmpeg 引擎直接吃音频文件（MIDI 已在临时 WAV，路径见下）
     compositor = Compositor(cfg)
     render_audio = _prepare_render_audio(audio_path, out_p.parent)
+
+    # 6.5 score 样式装配（#14）：谱面数据 + 可选节拍网格
+    visualizer_extra: dict = {}
+    if visual_style == "score":
+        from videomaker.exceptions import RenderError
+
+        midi_src = score_midi
+        if midi_src is None:
+            from videomaker.audio_io import detect_format
+            if detect_format(audio_path) == "midi":
+                midi_src = audio_path
+        if not midi_src:
+            raise RenderError(
+                "style=score 需要 MIDI 谱面数据：输入音频非 .mid 时请用 "
+                "--score-midi 指定对应的 MIDI 文件"
+            )
+        from smartnotegen.score import Score
+
+        score_obj = Score.from_midi(midi_src)
+        bpm_scroll = None
+        beat_times = None
+        if tempo_grid:
+            from smartnotegen.analysis.tempo import beat_grid, estimate_bpm
+
+            est = estimate_bpm(render_audio)
+            beat_times = beat_grid(analysis.duration_s, est.bpm, est.beat_offset)
+            bpm_scroll = est.bpm
+        visualizer_extra = dict(
+            score=score_obj,
+            beat_times=beat_times,
+            bpm=bpm_scroll,
+            notation=notation if notation in ("staff", "jianpu") else "staff",
+        )
+
     result_path = compositor.compose(
         render_audio,
         str(out_p),
         visual_style=visual_style,
         title=title,
         subtitle=subtitle,
+        visualizer_extra=visualizer_extra,
     )
 
     # 7. 元数据落盘
@@ -133,6 +175,9 @@ def video(
             "seed": seed,
             "style": style,
             "title": title,
+            "score_midi": score_midi,
+            "tempo_grid": tempo_grid,
+            "notation": notation,
         },
         seed=seed,
         duration_s=analysis.duration_s,

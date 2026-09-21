@@ -43,7 +43,7 @@ def render(
     audio: List[str] = typer.Argument(..., help="输入音频（WAV/MP3/FLAC/OGG/MIDI）；多个文件 = 多轨混音，支持 :gain=..:pan=.. 参数"),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="输出视频路径"),
     preset: str = typer.Option("douyin", "--preset", "-p", help="平台预设（douyin/youtube/instagram/official）"),
-    style: str = typer.Option("waveform", "--style", "-s", help="视觉效果风格（waveform/spectrum/circular_spectrum/reactive/tracks/waveform_scroll）"),
+    style: str = typer.Option("waveform", "--style", "-s", help="视觉效果风格（waveform/spectrum/circular_spectrum/reactive/tracks/waveform_scroll/score）"),
     width: Optional[int] = typer.Option(None, "--width", help="视频宽度"),
     height: Optional[int] = typer.Option(None, "--height", help="视频高度"),
     fps: Optional[int] = typer.Option(None, "--fps", help="帧率"),
@@ -52,6 +52,9 @@ def render(
     font_size: int = typer.Option(48, "--font-size", help="字体大小"),
     logo: Optional[str] = typer.Option(None, "--logo", help="Logo 水印 PNG 路径"),
     logo_pos: str = typer.Option("bottom-right", "--logo-pos", help="水印位置（top-left/top-right/bottom-left/bottom-right）"),
+    score_midi: Optional[str] = typer.Option(None, "--score-midi", help="score 样式的谱面 MIDI 路径（输入为 .mid 时可省略）"),
+    tempo_grid: bool = typer.Option(False, "--tempo-grid", help="用测速 BPM 绘制节拍网格并标注 BPM（score 样式）"),
+    notation: str = typer.Option("staff", "--notation", help="score 样式记谱法（staff=五线谱 / jianpu=简谱）"),
 ) -> None:
     """生成音乐视频。
 
@@ -102,6 +105,9 @@ def render(
         width=width,
         height=height,
         fps=fps,
+        score_midi=score_midi,
+        tempo_grid=tempo_grid,
+        notation=notation,
     )
 
     typer.echo(f"✅ 视频已生成: {result.output_path}")
