@@ -9,7 +9,7 @@
 ## 安装
 
 ```bash
-# 前置：已安装 SmartNoteGen（同 venv）
+# 前置：已安装 SunoAuxTool（同 venv）
 随主包安装：`pip install -e .`（videomaker 入口兼容保留）
 
 # 外部依赖
@@ -159,12 +159,12 @@ videomaker render drums.wav "bass.mid:gain=0.8:pan=-0.3" "melody.mp3:gain=1.2:pa
 
 ## 滚动谱面（v0.4）
 
-`--style score` 由 `smartnotegen.score` 的谱面数据驱动，逐帧渲染横向滚动谱面：
+`--style score` 由 `sunoauxtool.score` 的谱面数据驱动，逐帧渲染横向滚动谱面：
 - **播放头固定居中**，谱面随时间从右向左流动；正响的音高亮（主色+白描边）
 - 多轨垂直排列，五线谱谱号按轨道自动判定；宽音域自动收缩线距，不纵向溢出
 - `--notation staff`（默认）：五线谱（符头 + 加线 + 小节线）
 - `--notation jianpu`：简谱数字（1-7，变音加 `#`，八度加点；同时值和弦纵向堆叠）
-- `--tempo-grid`：用 `smartnotegen analysis.tempo` 测速，底部画节拍尺
+- `--tempo-grid`：用 `sunoauxtool analysis.tempo` 测速，底部画节拍尺
   （小节首拍加粗）并在头部标注实测 BPM；滚动时间轴同步采用测速 BPM
 
 ```bash
@@ -176,7 +176,7 @@ videomaker render song.wav -p youtube --style score --score-midi song.mid --nota
 ```
 
 > 说明：谱面为可视化简化谱（不带符干/连杠/调号聚合），深度排版请用
-> `smartnotegen score` 命令导出 SVG/PNG/MusicXML（见 docs/score.md）。
+> `sunoauxtool score` 命令导出 SVG/PNG/MusicXML（见 docs/score.md）。
 
 ---
 

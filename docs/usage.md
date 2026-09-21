@@ -1,4 +1,4 @@
-# SmartNoteGen 使用指南
+# SunoAuxTool 使用指南
 
 > 版本：v0.1.0（P0）｜ 配套文档：docs/PRD.md、docs/architecture.md、docs/task-plan.md
 
@@ -7,12 +7,12 @@
 ## 1. 全局参数
 
 ```bash
-smartnotegen [--config PATH] [--verbose] [--version] <子命令>
+sunoauxtool [--config PATH] [--verbose] [--version] <子命令>
 ```
 
 | 参数 | 说明 |
 |---|---|
-| `--config PATH` / `-c` | 指定配置文件（默认查找项目根 `smartnotegen.toml`） |
+| `--config PATH` / `-c` | 指定配置文件（默认查找项目根 `sunoauxtool.toml`） |
 | `--verbose` | DEBUG 级日志 |
 | `--version` | 打印版本号 |
 
@@ -25,7 +25,7 @@ smartnotegen [--config PATH] [--verbose] [--version] <子命令>
 ### 2.1 `generate midi` — 程序化多轨 MIDI
 
 ```bash
-smartnotegen generate midi [--chords CHORDS] [--bpm N] [--key KEY] [--time-signature TS]
+sunoauxtool generate midi [--chords CHORDS] [--bpm N] [--key KEY] [--time-signature TS]
                            [--bars N] [--style STYLE] [--seed N] [--with-drums]
                            [--track NAME ...] [--output PATH]
 ```
@@ -45,8 +45,8 @@ smartnotegen generate midi [--chords CHORDS] [--bpm N] [--key KEY] [--time-signa
 
 **示例：**
 ```bash
-smartnotegen generate midi --chords "C-G-Am-F" --bpm 120 --bars 8 --seed 42
-smartnotegen generate midi --chords "G-D-Em-C" --style rock --with-drums --seed 7
+sunoauxtool generate midi --chords "C-G-Am-F" --bpm 120 --bars 8 --seed 42
+sunoauxtool generate midi --chords "G-D-Em-C" --style rock --with-drums --seed 7
 ```
 
 **可复现性：** 相同参数 + 相同 `--seed` → 字节级一致的 .mid。
@@ -54,7 +54,7 @@ smartnotegen generate midi --chords "G-D-Em-C" --style rock --with-drums --seed 
 ### 2.2 `generate melody` — music21 乐理旋律 + 变奏
 
 ```bash
-smartnotegen generate melody [--key KEY] [--chords CHORDS] [--variations N] [--seed N] ...
+sunoauxtool generate melody [--key KEY] [--chords CHORDS] [--variations N] [--seed N] ...
 ```
 
 | 参数 | 默认 | 说明 |
@@ -66,13 +66,13 @@ smartnotegen generate melody [--key KEY] [--chords CHORDS] [--variations N] [--s
 
 **示例：**
 ```bash
-smartnotegen generate melody --key "C major" --chords C-G-Am-F --variations 3 --seed 5
+sunoauxtool generate melody --key "C major" --chords C-G-Am-F --variations 3 --seed 5
 ```
 
 ### 2.3 `render` — MIDI → WAV
 
 ```bash
-smartnotegen render --input xxx.mid [--soundfont PATH] [--fluidsynth PATH] [--output PATH]
+sunoauxtool render --input xxx.mid [--soundfont PATH] [--fluidsynth PATH] [--output PATH]
 ```
 
 | 参数 | 默认 | 说明 |
@@ -87,7 +87,7 @@ smartnotegen render --input xxx.mid [--soundfont PATH] [--fluidsynth PATH] [--ou
 ### 2.4 `export suno` — Suno 合规导出
 
 ```bash
-smartnotegen export suno --input xxx.wav [--duration 10..30] [--format wav|mp3]
+sunoauxtool export suno --input xxx.wav [--duration 10..30] [--format wav|mp3]
                          [--sample-rate N] [--bit-depth N] [--fade-ms N] [--output PATH]
 ```
 
@@ -105,7 +105,7 @@ smartnotegen export suno --input xxx.wav [--duration 10..30] [--format wav|mp3]
 ### 2.5 `pipeline` — 一键闭环
 
 ```bash
-smartnotegen pipeline [--chords ...] [--bpm ...] [--key ...] [--bars ...]
+sunoauxtool pipeline [--chords ...] [--bpm ...] [--key ...] [--bars ...]
                       [--style ...] [--seed ...] [--with-drums]
                       [--duration 10..30] [--format wav|mp3]
 ```
@@ -116,14 +116,14 @@ smartnotegen pipeline [--chords ...] [--bpm ...] [--key ...] [--bars ...]
 ### 2.6 `config init` / `config show`
 
 ```bash
-smartnotegen config init [--path smartnotegen.toml]   # 生成配置文件模板
-smartnotegen config show                              # 打印合并后的生效配置
+sunoauxtool config init [--path sunoauxtool.toml]   # 生成配置文件模板
+sunoauxtool config show                              # 打印合并后的生效配置
 ```
 
 ### 2.7 `batch`（P1-3 骨架）
 
 ```bash
-smartnotegen batch --count 5 --seed 42
+sunoauxtool batch --count 5 --seed 42
 ```
 
 P0 版本提示"批量生成属于 P1-3 里程碑"（退出码 1）。
@@ -132,12 +132,12 @@ P0 版本提示"批量生成属于 P1-3 里程碑"（退出码 1）。
 
 ```bash
 # MusicGen：以旋律 WAV 为条件扩编曲/生成器乐伴奏
-smartnotegen ai musicgen --input melody.wav --prompt "upbeat pop" \
+sunoauxtool ai musicgen --input melody.wav --prompt "upbeat pop" \
                          [--output out.wav] [--duration 20] [--model-size medium|small] \
                          [--seed N] [--device cuda|cpu]
 
 # DiffRhythm：风格提示（+ 可选歌词）→ 完整歌曲草稿（带人声）
-smartnotegen ai diffrhythm --prompt "slow ballad" \
+sunoauxtool ai diffrhythm --prompt "slow ballad" \
                            [--input ref.wav] [--output song.wav] \
                            [--lyrics "歌词"] [--duration 95] [--device cuda|cpu] \
                            [--diffrhythm-dir /abs/path/to/DiffRhythm]
@@ -171,7 +171,7 @@ smartnotegen ai diffrhythm --prompt "slow ballad" \
 ### 2.9 `score` — MIDI → 谱面（#12）
 
 ```bash
-smartnotegen score <mid> [--format all|svg,png,jianpu,jianpu_svg,musicxml,text]
+sunoauxtool score <mid> [--format all|svg,png,jianpu,jianpu_svg,musicxml,text]
                   [--key KEY] [--time-signature N/D] [--clef 轨道=treble|bass,...]
                   [--out-dir DIR]
 ```
@@ -184,7 +184,7 @@ smartnotegen score <mid> [--format all|svg,png,jianpu,jianpu_svg,musicxml,text]
 ### 2.10 `tempo` — 音频测速（#13）
 
 ```bash
-smartnotegen tempo <wav> [--min-bpm 40] [--max-bpm 240] [--prior-bpm 120]
+sunoauxtool tempo <wav> [--min-bpm 40] [--max-bpm 240] [--prior-bpm 120]
 ```
 
 - numpy-only：onset 包络 → ACF → 节奏先验（log-Gaussian，中心 120BPM）消解
@@ -194,7 +194,7 @@ smartnotegen tempo <wav> [--min-bpm 40] [--max-bpm 240] [--prior-bpm 120]
 ### 2.11 `transcribe` — WAV → MIDI 转谱（#13）
 
 ```bash
-smartnotegen transcribe <wav> [-o out.mid] [--bpm auto|N] [--grid 1/16]
+sunoauxtool transcribe <wav> [-o out.mid] [--bpm auto|N] [--grid 1/16]
                         [--backend builtin|basic-pitch] [--program 0]
 ```
 

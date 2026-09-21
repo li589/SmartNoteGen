@@ -40,7 +40,7 @@
 
 ## 二、安装
 
-本包是 `src/` 下的**独立 editable 兄弟包**（与 `smartnotegen` / `videomaker` 并列），
+本包是 `src/` 下的**独立 editable 兄弟包**（与 `sunoauxtool` / `videomaker` 并列），
 由本目录的 `pyproject.toml` 单独打包；主包 `pyproject.toml` 已 exclude 本目录。
 
 ### 命名约定（重要）
@@ -65,8 +65,8 @@ suno-cat-catch-resolve --help                 # 安装后的命令
 不安装、临时试用（注意 PYTHONPATH 指向**子项目根**，不是 `src`）：
 
 ```bash
-export PYTHONPATH="D:\New\Music\SmartNoteGen\src\Suno-Cat-Catch-Resolve"   # Git Bash
-$env:PYTHONPATH="D:\New\Music\SmartNoteGen\src\Suno-Cat-Catch-Resolve"     # PowerShell
+export PYTHONPATH="D:\New\Music\SunoAuxTool\src\Suno-Cat-Catch-Resolve"   # Git Bash
+$env:PYTHONPATH="D:\New\Music\SunoAuxTool\src\Suno-Cat-Catch-Resolve"     # PowerShell
 python -m suno_cat_catch_resolve version
 ```
 
@@ -113,7 +113,7 @@ python -m suno_cat_catch_resolve batch ./downloads -o ./out
 python -m suno_cat_catch_resolve version
 ```
 
-错误码（延续项目分段：smartnotegen 0-9、videomaker 10-14）：
+错误码（延续项目分段：sunoauxtool 0-9、videomaker 10-14）：
 
 | code | 含义 |
 |---|---|

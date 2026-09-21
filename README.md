@@ -50,7 +50,7 @@ pip install lameenc
 ## 快速开始（零参数 demo）
 
 ```bash
-smartnotegen pipeline
+sunoauxtool pipeline
 # → 读默认配置（C major / 120bpm / 8 小节 / C-G-Am-F / 3 轨）
 # → 生成 MIDI → FluidSynth 渲染 WAV（44.1kHz/16bit）→ 裁剪至 25s + 淡入淡出
 # → output/YYYYMMDD/pop_Cmajor_120_8bars_demo_*_suno25s.wav
@@ -61,7 +61,7 @@ smartnotegen pipeline
 （详见 `sunoaux --help`）：
 
 ```bash
-sunoaux pre midi --chords C-G-Am-F      # = smartnotegen generate midi
+sunoaux pre midi --chords C-G-Am-F      # = sunoauxtool generate midi
 sunoaux post convert cache/song.mp3     # = downloadhelper decode（fMP4 转码）
 sunoaux post video render song.wav      # = videomaker render（音乐视频）
 ```
@@ -72,27 +72,27 @@ sunoaux post video render song.wav      # = videomaker render（音乐视频）
 
 | 命令 | 用途 | 示例 |
 |---|---|---|
-| `generate midi` | 程序化多轨 MIDI（和弦/旋律/贝斯 [+鼓]） | `smartnotegen generate midi --chords C-G-Am-F --bpm 120 --seed 42` |
-| `generate melody` | music21 乐理旋律 + 变奏 | `smartnotegen generate melody --key "C major" --chords C-G-Am-F --variations 3` |
-| `render` | MIDI → WAV 渲染 | `smartnotegen render --input xxx.mid` |
-| `score` | MIDI → 谱面（五线谱 SVG/PNG、简谱、MusicXML） | `smartnotegen score song.mid --format all` |
-| `tempo` | 音频测速（ACF + 节奏先验，消倍频歧义） | `smartnotegen tempo song.wav` |
-| `transcribe` | WAV → MIDI 转谱（内置单旋律；复调用 basic-pitch） | `smartnotegen transcribe song.wav -o out.mid` |
-| `export suno` | Suno 合规导出（10–30s WAV/MP3） | `smartnotegen export suno --input xxx.wav --duration 25` |
-| `pipeline` | 一键闭环 generate→render→export | `smartnotegen pipeline`（零参数 demo） |
-| `config init` | 生成配置文件模板 | `smartnotegen config init` |
-| `config show` | 打印合并后的生效配置 | `smartnotegen config show` |
-| `batch` | 批量生成多个变体（随机化 + 可复现 + 失败隔离） | `smartnotegen batch --count 5 --seed 42` |
-| `ai musicgen` | MusicGen 扩编曲（旋律 → 伴奏） | `smartnotegen ai musicgen --input m.wav --prompt "upbeat pop"` |
-| `ai diffrhythm` | DiffRhythm 歌曲草稿（风格提示 → 带人声歌曲） | `smartnotegen ai diffrhythm --prompt "slow ballad"` |
-| `export suno-pack` | 批量导出 Suno 片段打包（目录 + zip + 清单） | `smartnotegen export suno-pack *.wav --name my_pack` |
-| `export suno-manifest` | 生成 Suno 上传清单（CSV/JSON） | `smartnotegen export suno-manifest *.wav -o upload.csv` |
-| `play` | 系统播放器播放 WAV | `smartnotegen play output/xxx.wav` |
-| `doctor` | 一键环境健康检查 | `smartnotegen doctor` |
-| `diff` | 对比两个 WAV 的音频特征 | `smartnotegen diff a.wav b.wav` |
-| `new` | 交互式引导生成新音乐 | `smartnotegen new` |
-| `inspire` | 灵感库管理（SQLite 存储） | `smartnotegen inspire init` |
-| `errors` | 打印错误码表 | `smartnotegen errors` |
+| `generate midi` | 程序化多轨 MIDI（和弦/旋律/贝斯 [+鼓]） | `sunoauxtool generate midi --chords C-G-Am-F --bpm 120 --seed 42` |
+| `generate melody` | music21 乐理旋律 + 变奏 | `sunoauxtool generate melody --key "C major" --chords C-G-Am-F --variations 3` |
+| `render` | MIDI → WAV 渲染 | `sunoauxtool render --input xxx.mid` |
+| `score` | MIDI → 谱面（五线谱 SVG/PNG、简谱、MusicXML） | `sunoauxtool score song.mid --format all` |
+| `tempo` | 音频测速（ACF + 节奏先验，消倍频歧义） | `sunoauxtool tempo song.wav` |
+| `transcribe` | WAV → MIDI 转谱（内置单旋律；复调用 basic-pitch） | `sunoauxtool transcribe song.wav -o out.mid` |
+| `export suno` | Suno 合规导出（10–30s WAV/MP3） | `sunoauxtool export suno --input xxx.wav --duration 25` |
+| `pipeline` | 一键闭环 generate→render→export | `sunoauxtool pipeline`（零参数 demo） |
+| `config init` | 生成配置文件模板 | `sunoauxtool config init` |
+| `config show` | 打印合并后的生效配置 | `sunoauxtool config show` |
+| `batch` | 批量生成多个变体（随机化 + 可复现 + 失败隔离） | `sunoauxtool batch --count 5 --seed 42` |
+| `ai musicgen` | MusicGen 扩编曲（旋律 → 伴奏） | `sunoauxtool ai musicgen --input m.wav --prompt "upbeat pop"` |
+| `ai diffrhythm` | DiffRhythm 歌曲草稿（风格提示 → 带人声歌曲） | `sunoauxtool ai diffrhythm --prompt "slow ballad"` |
+| `export suno-pack` | 批量导出 Suno 片段打包（目录 + zip + 清单） | `sunoauxtool export suno-pack *.wav --name my_pack` |
+| `export suno-manifest` | 生成 Suno 上传清单（CSV/JSON） | `sunoauxtool export suno-manifest *.wav -o upload.csv` |
+| `play` | 系统播放器播放 WAV | `sunoauxtool play output/xxx.wav` |
+| `doctor` | 一键环境健康检查 | `sunoauxtool doctor` |
+| `diff` | 对比两个 WAV 的音频特征 | `sunoauxtool diff a.wav b.wav` |
+| `new` | 交互式引导生成新音乐 | `sunoauxtool new` |
+| `inspire` | 灵感库管理（SQLite 存储） | `sunoauxtool inspire init` |
+| `errors` | 打印错误码表 | `sunoauxtool errors` |
 
 完整参数说明见 [docs/usage.md](docs/usage.md)；乐谱生成（五线谱 / 简谱 / MusicXML）见
 [docs/score.md](docs/score.md)。
@@ -101,8 +101,8 @@ sunoaux post video render song.wav      # = videomaker render（音乐视频）
 
 ## videomaker 子项目（音乐视频生成器）
 
-> 把 SmartNoteGen 产出的音频一键合成**可发布的音乐视频 / 音频可视化**，
-> 适配抖音/YouTube/Instagram/官网四大平台。非 AI，独立包，依赖 SmartNoteGen（单向）。
+> 把 SunoAuxTool 产出的音频一键合成**可发布的音乐视频 / 音频可视化**，
+> 适配抖音/YouTube/Instagram/官网四大平台。非 AI，独立包，依赖 SunoAuxTool（单向）。
 
 **输入格式**：WAV / MP3 / FLAC / OGG / **MIDI**（MIDI 自动用 FluidSynth 渲染）
 **能力**：多轨混音（增益/声像/归一化）、分轨可视化、滚动谱面（五线谱/简谱）、7 种视觉效果、多平台批量
@@ -171,12 +171,12 @@ suno-cat-catch-resolve batch  ./downloads -o ./out       # 批量，密文自动
 配置合并优先级（低 → 高）：**内置默认值 < `config/default.toml` < 用户配置文件 < CLI 参数**。
 
 ```bash
-smartnotegen config init            # 生成 smartnotegen.toml（可修改 SoundFont 路径）
-smartnotegen config show            # 查看生效配置
-smartnotegen --config my.toml generate midi   # 指定配置文件
+sunoauxtool config init            # 生成 sunoauxtool.toml（可修改 SoundFont 路径）
+sunoauxtool config show            # 查看生效配置
+sunoauxtool --config my.toml generate midi   # 指定配置文件
 ```
 
-用户配置文件默认查找项目根 `smartnotegen.toml`，也可用 `--config` 显式指定。
+用户配置文件默认查找项目根 `sunoauxtool.toml`，也可用 `--config` 显式指定。
 
 ---
 
@@ -221,10 +221,10 @@ set HF_ENDPOINT=https://hf-mirror.com
 **用法示例：**
 ```bash
 # MusicGen：以旋律 WAV 为条件扩编曲（medium fp16 默认；显存不足可 --model-size small）
-smartnotegen ai musicgen --input melody.wav --prompt "upbeat pop" --output acc.wav --duration 20 --seed 42
+sunoauxtool ai musicgen --input melody.wav --prompt "upbeat pop" --output acc.wav --duration 20 --seed 42
 
 # DiffRhythm：风格提示 → ≥60s 带人声歌曲草稿（chunked=True 默认；草稿不进 Suno 导出链）
-smartnotegen ai diffrhythm --prompt "slow ballad" --lyrics "第一句词" --duration 95
+sunoauxtool ai diffrhythm --prompt "slow ballad" --lyrics "第一句词" --duration 95
 ```
 
 详见 [docs/ai-integration.md](docs/ai-integration.md)。

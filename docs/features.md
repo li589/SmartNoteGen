@@ -1,6 +1,6 @@
-# SmartNoteGen 功能清单（三组件全量）
+# SunoAuxTool 功能清单（三组件全量）
 
-> 版本快照：`smartnotegen 0.5.4` · `videomaker 0.3.0` · `suno-cat-catch-resolve 0.1.0`
+> 版本快照：`sunoauxtool 0.5.4` · `videomaker 0.3.0` · `suno-cat-catch-resolve 0.1.0`
 > （历史快照，组件现已统一为单一发行版 `sunoauxtool` 1.0.0；旧版本号不再更新）
 > 生成日期：2026-09-20 ｜ 依据：源码（`src/`）与 CLI 实测 `--help`，非文档转述
 
@@ -10,13 +10,13 @@
 
 | # | 组件 | 发行名 / 入口 | 定位 | 依赖方向 |
 |---|---|---|---|---|
-| 1 | 音乐生成 CLI | `smartnotegen` | 程序化多轨 MIDI → 渲染 WAV → Suno 合规导出 | 无（底座） |
-| 2 | 音频可视化 | `videomaker` | 音频 → 音乐视频（多平台预设、多视觉风格） | → smartnotegen |
+| 1 | 音乐生成 CLI | `sunoauxtool` | 程序化多轨 MIDI → 渲染 WAV → Suno 合规导出 | 无（底座） |
+| 2 | 音频可视化 | `videomaker` | 音频 → 音乐视频（多平台预设、多视觉风格） | → sunoauxtool |
 | 3 | Suno 取证转码 | `Suno-Cat-Catch-Resolve` | 猫抓 Suno 产物逆向取证 + 解码转码 | 独立（零依赖） |
 
 ```
-smartnotegen  ──►  videomaker            （渲染/混音复用）
-smartnotegen  ──►  Suno 合规片段 ──►  Suno 平台
+sunoauxtool  ──►  videomaker            （渲染/混音复用）
+sunoauxtool  ──►  Suno 合规片段 ──►  Suno 平台
 suno-cat-catch-resolve                   （独立，CLI 自足；核心层零第三方依赖）
 ```
 
@@ -24,7 +24,7 @@ suno-cat-catch-resolve                   （独立，CLI 自足；核心层零�
 
 ---
 
-## 二、组件一：smartnotegen 0.5.4
+## 二、组件一：sunoauxtool 0.5.4
 
 ### 2.1 命令树（24 条命令）
 
@@ -66,7 +66,7 @@ suno-cat-catch-resolve                   （独立，CLI 自足；核心层零�
 
 | 命令 | 功能 |
 |---|---|
-| `inspire init` | 初始化灵感库（创建 `smartnotegen.db`） |
+| `inspire init` | 初始化灵感库（创建 `sunoauxtool.db`） |
 | `inspire add` | 从 WAV + 元数据提取并入库 |
 | `inspire list` | 列出灵感（支持标签/评分/多维筛选） |
 | `inspire show` | 查看灵感详情 |
@@ -143,7 +143,7 @@ suno-cat-catch-resolve                   （独立，CLI 自足；核心层零�
 
 `render` 参数：`--output/-o --preset/-p --style/-s --width --height --fps
 --title/-t --subtitle --font-size --logo --logo-pos`。
-输入支持 **WAV/MP3/FLAC/OGG/MIDI**（MIDI 走 smartnotegen 的 FluidSynth 真实引擎）；
+输入支持 **WAV/MP3/FLAC/OGG/MIDI**（MIDI 走 sunoauxtool 的 FluidSynth 真实引擎）；
 多轨语法 `file.wav:gain=0.8:pan=-0.3`。
 
 ### 3.2 视觉风格（6）与双引擎路由
@@ -216,7 +216,7 @@ suno-cat-catch-resolve                   （独立，CLI 自足；核心层零�
 
 ## 五、三组件对照
 
-| 维度 | smartnotegen | videomaker | Suno-Cat-Catch-Resolve |
+| 维度 | sunoauxtool | videomaker | Suno-Cat-Catch-Resolve |
 |---|---|---|---|
 | 版本 | 0.5.4 | 0.3.0 | 0.1.0 |
 | CLI 命令数 | 23 | 5 | 4 |
@@ -258,8 +258,8 @@ suno-cat-catch-resolve                   （独立，CLI 自足；核心层零�
 
 ```bash
 # 链路 1：从零到 Suno 可上传片段
-smartnotegen pipeline --style pop --seed 7 --duration 20 --format mp3
-smartnotegen export suno-manifest ./output -o ./upload.csv
+sunoauxtool pipeline --style pop --seed 7 --duration 20 --format mp3
+sunoauxtool export suno-manifest ./output -o ./upload.csv
 
 # 链路 2：音频 → 多平台音乐视频
 videomaker render song.wav -p douyin  -s reactive -t "曲名"

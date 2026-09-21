@@ -1,7 +1,7 @@
 # ============================================================
-# SmartNoteGen 默认配置模板（config init 生成 smartnotegen.toml 时以此为蓝本）
+# SunoAuxTool 默认配置模板（config init 生成 sunoauxtool.toml 时以此为蓝本）
 # 配置合并优先级（低 -> 高）：
-#   内置默认值 < 本文件 < 用户配置文件（--config 指定，或项目根 smartnotegen.toml）< CLI 参数
+#   内置默认值 < 本文件 < 用户配置文件（--config 指定，或项目根 sunoauxtool.toml）< CLI 参数
 # ============================================================
 
 [paths]

@@ -1,6 +1,6 @@
 # score — 乐谱生成使用指南
 
-> SmartNoteGen 乐谱子系统：从 **MIDI** 生成 **五线谱 / 简谱 / MusicXML**。
+> SunoAuxTool 乐谱子系统：从 **MIDI** 生成 **五线谱 / 简谱 / MusicXML**。
 > 纯本地、离线；五线谱 SVG 与简谱 SVG **零依赖**（浏览器直接看），位图输出需 Pillow。
 
 ---
@@ -9,19 +9,19 @@
 
 ```bash
 # 从 MIDI 出五线谱 SVG（默认格式）
-smartnotegen score song.mid
+sunoauxtool score song.mid
 
 # 一次性出全部 6 种格式
-smartnotegen score song.mid --format all -o ./score
+sunoauxtool score song.mid --format all -o ./score
 
 # 简谱纯文本（等宽字符，可直接打印）
-smartnotegen score song.mid --format jianpu-txt
+sunoauxtool score song.mid --format jianpu-txt
 
 # 深色主题 + 自定义标题 / 调式 / 署名
-smartnotegen score song.mid --theme dark --title "夜曲" --key "a minor" --composer "我"
+sunoauxtool score song.mid --theme dark --title "夜曲" --key "a minor" --composer "我"
 
 # 把已有的 MIDI 补出谱面
-smartnotegen score output/20260921/pop_Cmajor_120_8bars_42.mid -f svg,png,musicxml
+sunoauxtool score output/20260921/pop_Cmajor_120_8bars_42.mid -f svg,png,musicxml
 ```
 
 ---
@@ -40,7 +40,7 @@ smartnotegen score output/20260921/pop_Cmajor_120_8bars_42.mid -f svg,png,musicx
 | `musicxml` | MusicXML 4.0（MuseScore / Dorico / Finale 可导入） | `.musicxml` | `xml` / `music-xml` |
 
 ```bash
-smartnotegen score song.mid --list-formats   # 打印可用格式与主题，不渲染
+sunoauxtool score song.mid --list-formats   # 打印可用格式与主题，不渲染
 ```
 
 ---
@@ -74,13 +74,13 @@ smartnotegen score song.mid --list-formats   # 打印可用格式与主题，不
 
 ```bash
 # generate：产出 MIDI 的同时在同目录、同主干旁出谱面
-smartnotegen generate midi --chords C-G-Am-F --bpm 120 --score --score-format svg,png
+sunoauxtool generate midi --chords C-G-Am-F --bpm 120 --score --score-format svg,png
 
 # pipeline：一键闭环，并把五线谱内嵌进 HTML 预览页
-smartnotegen pipeline --score --score-format all --score-theme dark
+sunoauxtool pipeline --score --score-format all --score-theme dark
 
 # 记谱调式可与生成调式不同（例如生成用 C major，记谱用 a minor）
-smartnotegen generate midi --score --score-key "a minor"
+sunoauxtool generate midi --score --score-key "a minor"
 ```
 
 两个命令共用的选项：`--score`、`--score-format`、`--score-theme`、`--score-key`。
@@ -91,9 +91,9 @@ smartnotegen generate midi --score --score-key "a minor"
 ## Python API
 
 ```python
-from smartnotegen.models.notes import NoteSequence      # 你的音符数据
-from smartnotegen.score import Score, layout_score, render_svg, SvgOptions
-from smartnotegen.score_export import (
+from sunoauxtool.models.notes import NoteSequence      # 你的音符数据
+from sunoauxtool.score import Score, layout_score, render_svg, SvgOptions
+from sunoauxtool.score_export import (
     ScoreExportOptions,
     export_score,
     score_from_sequence,
@@ -118,7 +118,7 @@ svg = render_svg(layout, SvgOptions())    # 或 write_svg(layout, "out/x.svg")
 `score/__init__.py` 聚合了公开 API；各格式的渲染器也可单独导入：
 
 ```python
-from smartnotegen.score import (
+from sunoauxtool.score import (
     Score, ScoreTrack, ScoreMeasure, ScoreNote,   # 中间表示
     layout_score, LayoutOptions,                  # 排版
     render_svg, write_svg, SvgOptions, SvgTheme,  # 五线谱
@@ -200,6 +200,6 @@ pip install Pillow          # 需要 PNG / jianpu-png 时才装
 
 ## 相关文档
 
-- [usage.md](usage.md) — smartnotegen 全命令参数
+- [usage.md](usage.md) — sunoauxtool 全命令参数
 - [features.md](features.md) — 三组件全量功能清单
 - [videomaker.md](videomaker.md) — 谱面产出后做成音乐视频
