@@ -1,11 +1,11 @@
 # ============================================================
-# SmartNoteGen 打包脚本（Windows / PyInstaller）
+# SunoAuxTool 打包脚本（Windows / PyInstaller）
 # 用法：在 PowerShell 中执行  powershell -ExecutionPolicy Bypass -File scripts\build_package.ps1
-# 产物：dist\smartnotegen.exe（可分发 CLI）
+# 产物：dist\sunoauxtool.exe（可分发 CLI）
 #
 # 重要：module/ 资源（fluidsynth 二进制 + SoundFont）不随单文件 exe 内嵌，
 # 必须与 exe 同目录分发，并保持相对路径不变：
-#   dist\smartnotegen.exe
+#   dist\sunoauxtool.exe
 #   dist\module\fluidsynth\bin\fluidsynth.exe（含 libfluidsynth-3.dll / SDL3.dll / sndfile.dll）
 #   dist\module\GeneralUser_GS\GeneralUser-GS\GeneralUser-GS.sf2
 #   dist\module\GeneralUser_GS\ColomboGMGS2_SF2\ColomboGMGS2.sf2
@@ -22,13 +22,13 @@ if ($LASTEXITCODE -ne 0) {
     if ($LASTEXITCODE -ne 0) { throw "安装 PyInstaller 失败" }
 }
 
-Write-Host "[2/4] 打包 smartnotegen ..."
+Write-Host "[2/4] 打包 sunoauxtool ..."
 & .\venv\Scripts\python.exe -m PyInstaller `
     --onefile `
-    --name smartnotegen `
+    --name sunoauxtool `
     --paths src `
-    --collect-submodules smartnotegen `
-    src\smartnotegen\__main__.py
+    --collect-submodules sunoauxtool `
+    src\sunoauxtool\__main__.py
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller 打包失败" }
 
 Write-Host "[3/4] 复制 module 资源（fluidsynth + SoundFont，保持相对路径）..."
@@ -41,9 +41,9 @@ if (Test-Path (Join-Path $Root "module")) {
 
 Write-Host "[4/4] 生成资源说明 README-EXE.txt ..."
 @"
-SmartNoteGen 单文件 CLI 分发说明
+SunoAuxTool 单文件 CLI 分发说明
 ================================
-1. 运行: dist\smartnotegen.exe --help
+1. 运行: dist\sunoauxtool.exe --help
 2. 本产物为单文件 exe，但渲染依赖外部资源，需保持以下相对路径：
    - dist\module\fluidsynth\bin\fluidsynth.exe （含 libfluidsynth-3.dll / SDL3.dll / sndfile.dll）
    - dist\module\GeneralUser_GS\GeneralUser-GS\GeneralUser-GS.sf2
@@ -52,5 +52,5 @@ SmartNoteGen 单文件 CLI 分发说明
 4. 配置 [paths] 支持相对项目根（即 exe 所在目录）解析，见 config\default.toml。
 "@ | Set-Content -Encoding UTF8 (Join-Path $Dist "README-EXE.txt")
 
-Write-Host "✅ 打包完成：dist\smartnotegen.exe"
-Write-Host "   验证: dist\smartnotegen.exe --help"
+Write-Host "✅ 打包完成：dist\sunoauxtool.exe"
+Write-Host "   验证: dist\sunoauxtool.exe --help"

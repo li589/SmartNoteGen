@@ -118,7 +118,7 @@
   必须排除，否则主包打包时会收录成非法包名。
 
 ### 工程化
-- **`src/videomaker/` 与 `reports/`、`styles/` 纳入版本控制**：videomaker 源码（v0.1.0 → v0.3.0
+- **`src/videomaker/` 与 `docs/reports/`、`styles/` 纳入版本控制**：videomaker 源码（v0.1.0 → v0.3.0
   全部交付）此前只存在于工作区、从未入库；本次连同 `tests/test_videomaker.py`（30 例）与
   `tests/test_videomaker_v03.py`（26 例）、4 份交付报告一并入库。
 - **清理 `src/videomaker/` 16 处 lint 问题**：未使用导入（F401 ×13）、空 f-string（F541）、
@@ -238,10 +238,10 @@
   （MM-DD 保持不动：git 中 `v0.2.0` / `v0.3.0` 的提交日确比 CHANGELOG 记录的
   **发布日**晚 1–2 天，属"先发布后提交"，非错误。）
 - `README.md` 新增「Suno-Cat-Catch-Resolve 子项目」一节（含两类产物对照表与命名约定）。
-- videomaker 交付报告归档至 `reports/`（v0.1 → v0.3.0 共 4 份）。
-- **新增「子项目变更历史：videomaker」附录**（本文件末尾）：把此前只散落在 `reports/`
+- videomaker 交付报告归档至 `docs/reports/`（v0.1 → v0.3.0 共 4 份）。
+- **新增「子项目变更历史：videomaker」附录**（本文件末尾）：把此前只散落在 `docs/reports/`
   的 v0.1.0 → v0.3.0 版本线正式并入主 CHANGELOG，含各版能力、已知限制与测试规模。
-- `reports/ci-remediation-plan.md`：CI 修复路线与决策记录。
+- `docs/reports/ci-remediation-plan.md`：CI 修复路线与决策记录。
 - `src/Suno-Cat-Catch-Resolve/README.md`：补 ffmpeg 定位的四种方式与 `SUNO_FFMPEG*`
   环境变量说明；测试数更新为 147 例。
 
@@ -400,7 +400,7 @@
 > （错误码分段 10-14，主包占用 0-9）。
 > 下列版本于 2026-08-21 → 2026-08-29 陆续交付，但**直到 2026-09-20 才随源码一并纳入版本控制**
 > （此前只存在于工作区，见 `[Unreleased]` → 工程化）。
-> 各版本完整交付报告见 `reports/videomaker-*.md`。
+> 各版本完整交付报告见 `docs/reports/videomaker-*.md`。
 
 ### [0.3.0] - 2026-08-29（多格式输入 + 多轨混音 + 分轨可视化）
 

@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM SmartNoteGen 一键安装脚本（Windows）
+REM SunoAuxTool 一键安装脚本（Windows）
 REM 用途：创建 venv + 安装运行/开发依赖 + 可编辑安装项目
 REM 用法：在项目根目录执行  scripts\install.bat
 REM ============================================================
@@ -24,7 +24,7 @@ echo [3/4] 安装开发依赖 requirements/dev.txt（可选，用于测试/覆�
 call venv\Scripts\python.exe -m pip install -r requirements\dev.txt
 if errorlevel 1 goto :fail
 
-echo [4/4] 可编辑安装 smartnotegen ...
+echo [4/4] 可编辑安装 sunoauxtool ...
 call venv\Scripts\python.exe -m pip install -e .
 if errorlevel 1 goto :fail
 
@@ -35,8 +35,8 @@ echo   - module\GeneralUser_GS\GeneralUser-GS\GeneralUser-GS.sf2（默认音色�
 echo   - module\GeneralUser_GS\ColomboGMGS2_SF2\ColomboGMGS2.sf2（备选音色库 B）
 echo.
 echo 快速验证：
-echo   venv\Scripts\smartnotegen.exe --help
-echo   venv\Scripts\smartnotegen.exe pipeline
+echo   venv\Scripts\sunoauxtool.exe --help
+echo   venv\Scripts\sunoauxtool.exe pipeline
 goto :eof
 
 :fail
