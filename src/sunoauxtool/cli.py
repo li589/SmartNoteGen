@@ -1174,6 +1174,34 @@ def analyze_cmd(
         typer.echo(f"    JSON 输出: {json_out}")
 
 
+@app.command("video-preview", help="视频产物预览（R15）：抽缩略帧 + 时间轴 scrub HTML")
+@_guard
+def video_preview_cmd(
+    video: str = typer.Argument(..., help="视频文件路径"),
+    n: int = typer.Option(6, "--frames", "-n", help="缩略帧数量"),
+    out: Optional[Path] = typer.Option(
+        None, "-o", "--out", help="输出根目录（默认 output/，其下新建 preview/<视频名>/）"
+    ),
+) -> None:
+    """为视频产物生成 scrub 预览页（R15）。
+
+    缩略帧写入**新建目录** ``<out>/preview/<视频名>/``（默认 ``output/preview/...``），
+    不覆盖既有产物；点击缩略图即 seek 到对应时间点。依赖 ffmpeg/ffprobe（未装会报错）。
+    """
+    from sunoauxtool.exceptions import InputFileError
+
+    src = Path(video).expanduser()
+    if not src.is_file():
+        raise InputFileError(f"视频文件不存在: {src}", code=3)
+
+    from sunoauxtool.preview import VideoPreviewGenerator
+
+    gen = VideoPreviewGenerator(n_frames=n)
+    html = gen.generate(str(src), output_root=out)
+    typer.echo(f"✅ 视频预览已生成: {html}")
+    typer.echo(f"   缩略帧 {n} 个，位于 {Path(html).parent}")
+
+
 @app.command("new", help="交互式引导生成新音乐（新手指南）")
 @_guard
 def new_cmd() -> None:

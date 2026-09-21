@@ -108,7 +108,7 @@ suno-cat-catch-resolve                   （独立，CLI 自足；核心层零�
 | `export/audio.py` | 通用音频导出 |
 | `export/suno.py` | Suno 合规校验（时长 10–30s、采样率白名单、禁混响） |
 | `sunopack.py` | Suno 片段打包与清单 |
-| `preview.py` | HTML 预览页（含音频特征；`pipeline --score` 时内嵌五线谱 SVG） |
+| `preview.py` | HTML 预览页（含音频特征；`pipeline --score` 时内嵌五线谱 SVG）+ 视频缩略帧 scrub 预览（`video-preview`，产物落在 `output/preview/<视频名>/`） |
 | `score/`（9 子模块） | 乐谱子系统：乐理 → 中间表示 → 排版 → 五线谱 / 简谱 / MusicXML / 位图 |
 | `score_export.py` | 谱面格式归一化与统一落盘（`score` 子命令 / `generate` / `pipeline` 共用） |
 | `output_manager.py` | 输出布局管理（`project/date` + seq 防覆盖 + `metadata.json`） |

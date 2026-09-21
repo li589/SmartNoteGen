@@ -15,7 +15,7 @@ import json
 import math
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, List, Optional
 
 import numpy as np
 import soundfile as sf
@@ -558,3 +558,269 @@ items.forEach((item, idx) => {{
 </script>
 </body>
 </html>"""
+
+
+# ---------------------------------------------------------------------------
+# 视频预览：缩略帧 + 时间轴 scrub（R15）
+# ---------------------------------------------------------------------------
+
+#: 缩略图/HTML 的输出根目录名（位于 output/ 下，用户裁定：可放 output/ 但须新建目录）
+PREVIEW_DIR_NAME = "preview"
+
+_VIDEO_PREVIEW_TEMPLATE = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>视频预览 __NAME__</title>
+<style>
+  body { background:#15151f; color:#e8e8f0; font-family:system-ui,"Microsoft YaHei",sans-serif; margin:24px; }
+  h1 { font-size:18px; margin-bottom:4px; }
+  .meta { color:#9aa; font-size:12px; margin-bottom:12px; }
+  video { width:100%; max-width:960px; background:#000; border-radius:8px; }
+  .strip { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+  .thumb { background:#1d1d2b; border:2px solid #333; border-radius:6px;
+           cursor:pointer; padding:0; overflow:hidden; color:inherit; }
+  .thumb:hover { border-color:#00c8ff; }
+  .thumb img { display:block; width:160px; height:90px; object-fit:cover; }
+  .thumb span { display:block; color:#9aa; font-size:11px; padding:3px 0; }
+</style>
+</head>
+<body>
+<h1>__NAME__</h1>
+<div class="meta">时长 __DURATION__ s · __NFRAMES__ 个缩略帧（点击缩略图跳转）</div>
+__VIDEO__
+<div class="strip">
+__THUMBS__
+</div>
+<script>
+function seekTo(t) {
+  var v = document.getElementById("vp");
+  if (!v) return;
+  v.currentTime = t;
+  var p = v.play();
+  if (p && p.catch) { p.catch(function () {}); }
+}
+</script>
+</body>
+</html>"""
+
+
+def _esc(s: str) -> str:
+    """最小 HTML 转义（避免文件名/路径破坏标签）。"""
+    return (
+        (s or "")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+def _default_runner(cmd: List[str]) -> str:
+    """默认命令执行器：跑子进程返回 stdout；非 0 退出码抛 RuntimeError。"""
+    import subprocess
+
+    res = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    if res.returncode != 0:
+        raise RuntimeError(
+            f"命令失败（{res.returncode}）: {' '.join(cmd)}\n{res.stderr}"
+        )
+    return res.stdout
+
+
+@dataclass
+class PreviewFrame:
+    """一个视频缩略帧。"""
+
+    index: int
+    time_s: float
+    path: Path  # 缩略图绝对路径
+    rel_path: str  # 相对 HTML 的引用路径（同目录 -> 仅文件名）
+
+
+def probe_duration(video_path: str | Path, runner: Optional[Callable] = None) -> float:
+    """用 ffprobe 探测视频时长（秒）。
+
+    Args:
+        runner: 命令执行器（**注入点**，测试可替换）；None 用子进程。
+
+    Raises:
+        RuntimeError: ffprobe 执行失败或输出无法解析为浮点。
+    """
+    run = runner or _default_runner
+    out = run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=nw=1:nk=1",
+            str(video_path),
+        ]
+    )
+    try:
+        return float(str(out).strip().splitlines()[0])
+    except (ValueError, IndexError) as exc:
+        raise RuntimeError(
+            f"无法解析视频时长: {video_path}（ffprobe 输出: {out!r}）"
+        ) from exc
+
+
+def extract_preview_frames(
+    video_path: str | Path,
+    out_dir: str | Path,
+    duration_s: Optional[float] = None,
+    n: int = 6,
+    runner: Optional[Callable] = None,
+    ffmpeg: str = "ffmpeg",
+) -> List[PreviewFrame]:
+    """从视频均匀抽取 ``n`` 个缩略帧到 ``out_dir``。
+
+    Args:
+        video_path: 视频文件。
+        out_dir: 缩略图输出目录（**会创建**）。
+        duration_s: 时长（秒）；None 时先用 ffprobe 探测。
+        n: 缩略帧数量（须 >= 1）。
+        runner: 命令执行器注入点。
+        ffmpeg: ffmpeg 可执行文件名/路径。
+
+    Returns:
+        按时间升序的 :class:`PreviewFrame` 列表。
+
+    Notes:
+        采样点取 ``(i + 0.5) * duration / n``——避开 0 与结尾两处边界
+        （首帧常是黑场、末帧易因舍入越界）。
+    """
+    if n < 1:
+        raise ValueError(f"缩略帧数量须 >= 1: {n}")
+
+    video = Path(video_path)
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    run = runner or _default_runner
+
+    if duration_s is None:
+        duration_s = probe_duration(video, runner=run)
+    if duration_s <= 0:
+        raise ValueError(f"视频时长须 > 0: {duration_s}")
+
+    stem = video.stem
+    frames: List[PreviewFrame] = []
+    for i in range(n):
+        t = (i + 0.5) * duration_s / n
+        name = f"{stem}_t{i:02d}.jpg"
+        target = out_dir / name
+        run(
+            [
+                ffmpeg,
+                "-y",
+                "-ss",
+                f"{t:.3f}",
+                "-i",
+                str(video),
+                "-frames:v",
+                "1",
+                "-q:v",
+                "3",
+                str(target),
+            ]
+        )
+        frames.append(PreviewFrame(index=i, time_s=t, path=target, rel_path=name))
+    return frames
+
+
+def build_video_preview_html(
+    video_name: str,
+    frames: List[PreviewFrame],
+    duration_s: float,
+    video_href: Optional[str] = None,
+) -> str:
+    """生成视频 scrub 预览 HTML —— **纯函数**：不跑 ffmpeg、不落盘。
+
+    Args:
+        video_name: 展示用的视频名。
+        frames: 缩略帧列表（``rel_path`` 相对 HTML 所在目录引用）。
+        duration_s: 视频时长（秒）。
+        video_href: 视频源地址（本地文件传 ``Path.as_uri()``）；None 则只浏览缩略帧。
+
+    Returns:
+        自包含 HTML 字符串（无外部依赖，离线可打开）。
+    """
+    if video_href:
+        video_block = (
+            f'<video id="vp" src="{_esc(video_href)}" controls '
+            'preload="metadata"></video>'
+        )
+    else:
+        video_block = '<div class="meta">（未提供视频源，仅缩略帧浏览）</div>'
+
+    thumbs = "\n".join(
+        f'  <button class="thumb" onclick="seekTo({f.time_s:.3f})">'
+        f'<img src="{_esc(f.rel_path)}" alt="t={f.time_s:.2f}s">'
+        f"<span>{f.time_s:.2f}s</span></button>"
+        for f in frames
+    )
+
+    return (
+        _VIDEO_PREVIEW_TEMPLATE.replace("__NAME__", _esc(video_name))
+        .replace("__DURATION__", f"{duration_s:.2f}")
+        .replace("__NFRAMES__", str(len(frames)))
+        .replace("__VIDEO__", video_block)
+        .replace("__THUMBS__", thumbs)
+    )
+
+
+class VideoPreviewGenerator:
+    """视频预览生成器（R15）：抽缩略帧 + 写 scrub HTML。
+
+    输出布局（**新建目录，不污染既有 output 子目录**）::
+
+        <output_root>/preview/<视频 stem>/preview.html
+        <output_root>/preview/<视频 stem>/<stem>_t00.jpg ...
+    """
+
+    def __init__(self, n_frames: int = 6, ffmpeg: str = "ffmpeg") -> None:
+        self.n_frames = n_frames
+        self.ffmpeg = ffmpeg
+
+    def output_dir_for(
+        self, video_path: str | Path, output_root: str | Path | None = None
+    ) -> Path:
+        """解析并创建该视频的预览输出目录。"""
+        if output_root is None:
+            from sunoauxtool.config import Config
+
+            output_root = getattr(Config().paths, "output_dir", "output") or "output"
+        d = Path(output_root) / PREVIEW_DIR_NAME / Path(video_path).stem
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def generate(
+        self,
+        video_path: str | Path,
+        output_root: str | Path | None = None,
+        duration_s: Optional[float] = None,
+        runner: Optional[Callable] = None,
+    ) -> str:
+        """生成视频预览页，返回 ``preview.html`` 的绝对路径。"""
+        video = Path(video_path)
+        out_dir = self.output_dir_for(video, output_root)
+
+        if duration_s is None:
+            duration_s = probe_duration(video, runner=runner)
+
+        frames = extract_preview_frames(
+            video,
+            out_dir,
+            duration_s=duration_s,
+            n=self.n_frames,
+            runner=runner,
+            ffmpeg=self.ffmpeg,
+        )
+        href = video.resolve().as_uri() if video.is_file() else None
+        html = build_video_preview_html(video.name, frames, duration_s, video_href=href)
+        out_html = out_dir / "preview.html"
+        out_html.write_text(html, encoding="utf-8")
+        return str(out_html)

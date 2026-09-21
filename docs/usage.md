@@ -203,6 +203,30 @@ sunoauxtool transcribe <wav> [-o out.mid] [--bpm auto|N] [--grid 1/16]
 - 窗长 2048 / 帧中心时间戳：为 1/16 网格量化精度做的取舍（4096 会因窗尾泄漏
   让音界提前 ~80ms）。
 
+### 2.12 `analyze` — 调性 / 和弦 / 段落（R13）
+
+```bash
+sunoauxtool analyze <wav> [--key] [--chords] [--structure] [--json]
+```
+
+- 子项全关时默认三项全跑。numpy-only：`estimate_key` 用色度直方图 ×
+  Krumhansl-Kessler 权重 Pearson 相关；`estimate_chords` 用 48 个三和弦模板
+  余弦相似度（相邻同和弦合并）；`estimate_structure` 用自相似矩阵 + Foote
+  棋盘核新奇度取峰值切段。
+- 均为**启发式估计**，用于辅助编曲/打点，不做权威判定。
+
+### 2.13 `video-preview` — 视频缩略帧预览（R15）
+
+```bash
+sunoauxtool video-preview <video> [--frames 6] [-o out_dir]
+```
+
+- 用 ffprobe 取时长 → 在 `(i+0.5)*时长/n` 处抽 n 帧 jpg → 生成单文件 HTML，
+  点缩略图即 seek 到对应时间点。
+- 产物落在**新建目录** `<out>/preview/<视频名>/`（默认 `output/preview/...`），
+  与既有音频/视频产物不冲突；`<out>` 留空时取配置里的 `paths.output_dir`。
+- 依赖 ffmpeg/ffprobe；视频不存在退出码 3。
+
 ---
 
 ## 3. 配置文件详解
