@@ -12,11 +12,11 @@ from pathlib import Path
 
 import pytest
 
-from smartnotegen.exceptions import InputFileError, ParameterError
-from smartnotegen.models.midi import MidiDocument
-from smartnotegen.models.notes import Note, NoteSequence
-from smartnotegen.score import Score, ScoreMeasure, ScoreNote, ScoreTrack
-from smartnotegen.score_export import (
+from sunoauxtool.exceptions import InputFileError, ParameterError
+from sunoauxtool.models.midi import MidiDocument
+from sunoauxtool.models.notes import Note, NoteSequence
+from sunoauxtool.score import Score, ScoreMeasure, ScoreNote, ScoreTrack
+from sunoauxtool.score_export import (
     FORMAT_SUFFIX,
     SCORE_FORMATS,
     ScoreExportOptions,
@@ -277,7 +277,7 @@ def test_export_svg_is_well_formed_xml(tmp_path: Path):
 
 
 def test_export_musicxml_passes_validation(tmp_path: Path):
-    from smartnotegen.score import validate_musicxml
+    from sunoauxtool.score import validate_musicxml
 
     written = export_score(small_score(), tmp_path, "p", ScoreExportOptions(formats="musicxml"))
     text = Path(written["musicxml"]).read_text(encoding="utf-8")
@@ -419,14 +419,14 @@ def test_score_from_sequence_none_key_keeps_sequence_key():
 
 def test_drum_sequence_track_is_exportable():
     """打击轨走 unpitched + percussion 谱号，导出不应抛错且 MusicXML 应合法。"""
-    from smartnotegen.score import validate_musicxml
+    from sunoauxtool.score import validate_musicxml
 
     seq = _Seq()
     seq.tracks = [_SeqTrack("Drums", channel=9, notes=[_SeqNote(36, 0.0, 1.0), _SeqNote(38, 1.0, 1.0)])]
     score = score_from_sequence(seq, title="D")
     assert score.tracks[0].is_drum is True
     validate_musicxml(__import__(
-        "smartnotegen.score", fromlist=["render_musicxml"]
+        "sunoauxtool.score", fromlist=["render_musicxml"]
     ).render_musicxml(score))
 
 

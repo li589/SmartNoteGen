@@ -2,6 +2,35 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/) 风格。
 
+## [0.7.0] - 2026-09-21（更名 SunoAuxTool + 单包化统一）
+
+### 变更（破坏性/结构性）
+- **项目更名 SmartNoteGen → SunoAuxTool**：GitHub 仓库已改名 `li589/SunoAuxTool`；
+  发行名与 Python 包名 `smartnotegen` → **`sunoauxtool`**（全仓 600 处引用迁移）。
+- **三包合一（单发行版制）**：`videomaker` → `sunoauxtool.video` 子包、
+  `Suno-Cat-Catch-Resolve` → **`sunoauxtool.download`（品牌名 DownloadHelper）** 子包，
+  各自独立 pyproject 撤销，版本号统一镜像发行版（守卫测试同步更新）。
+- **兼容 shim 保留 ≥1 版本**：`import smartnotegen` / `import videomaker` 经
+  sys.modules 别名转发到新位置（触发 DeprecationWarning）；CLI 旧入口
+  `smartnotegen` / `videomaker` 命令保留，新增 `sunoauxtool` / `downloadhelper` 入口。
+- 异常基类 `SmartNoteGenError` 类名保留（外部 `except` 不破坏），
+  新增别名 `SunoAuxToolError`（同一对象）。
+- 环境变量 `SUNO_FFMPEG` / `SMARTNOTEGEN_FFMPEG` / `SUNO_FFMPEG_DIRS` 全部保留。
+
+### 新增
+- `requirements` 层面：主包依赖新增 `pillow`（video 子模块需要，原为 videomaker 隐式依赖）。
+
+### 测试
+- 根套件 1046 → **1191 例**：download 子包 4 个测试文件（147 例）并入根 `tests/`
+  （原独立 CI 步骤撤销，现在天然被根套件收集——消除「子包测试无人发现」的机制性根源）。
+- 覆盖率口径随单包化扩大到 video/download 模块：**87.30%**（门槛 87%）。
+  ⚠️ 余量从 ~5pp 收窄到 0.3pp——后续补 video 模块测试（R3/R6 顺带）拉回安全余量。
+
+### 工程化
+- CI：Suno 子包独立步骤删除；零 torch 断言改用 `sunoauxtool` 入口；
+  ruff `extend-exclude` 暂排除 `src/versatile_audio_super_resolution`（R5 入库时清理）。
+- `docs/downloadhelper.md`（原子项目 README 并入 docs）；README/子文档定位语更新。
+
 ## [0.6.0] - 2026-09-21（谱面子系统 + 音频分析 + videomaker 滚动谱面，#9–#14）
 
 ### 新增（主包）

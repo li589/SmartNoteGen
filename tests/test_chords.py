@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from smartnotegen.exceptions import ParameterError
-from smartnotegen.models.chords import Chord, ChordProgression
+from sunoauxtool.exceptions import ParameterError
+from sunoauxtool.models.chords import Chord, ChordProgression
 
 
 def test_parse_basic_progression():

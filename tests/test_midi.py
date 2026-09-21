@@ -5,10 +5,10 @@ from __future__ import annotations
 import pretty_midi
 import pytest
 
-from smartnotegen.generators.base import GenerationRequest
-from smartnotegen.generators.procedural import ProceduralGenerator
-from smartnotegen.models.midi import MidiDocument
-from smartnotegen.models.notes import Note, NoteSequence, pitch_to_name
+from sunoauxtool.generators.base import GenerationRequest
+from sunoauxtool.generators.procedural import ProceduralGenerator
+from sunoauxtool.models.midi import MidiDocument
+from sunoauxtool.models.notes import Note, NoteSequence, pitch_to_name
 
 
 def test_pitch_to_name_c4():
@@ -129,7 +129,7 @@ def test_beat_to_second_conversion():
 
 def test_load_missing_file(tmp_path):
     """加载不存在的 .mid -> InputFileError(3)。"""
-    from smartnotegen.exceptions import InputFileError
+    from sunoauxtool.exceptions import InputFileError
 
     with pytest.raises(InputFileError) as exc:
         MidiDocument.load(tmp_path / "missing.mid")

@@ -23,9 +23,9 @@ import struct
 
 import pytest
 
-from smartnotegen.models.notes import Note, NoteSequence
-from smartnotegen.score import Score, SvgTheme, layout_score, render_png, write_png
-from smartnotegen.score.jianpu import (
+from sunoauxtool.models.notes import Note, NoteSequence
+from sunoauxtool.score import Score, SvgTheme, layout_score, render_png, write_png
+from sunoauxtool.score.jianpu import (
     KEY_BASELINE,
     JianpuRenderer,
     JpOptions,
@@ -38,8 +38,8 @@ from smartnotegen.score.jianpu import (
     write_jianpu_png,
     write_jianpu_svg,
 )
-from smartnotegen.score.svg import ACCIDENTAL_STROKES
-from smartnotegen.score.theory import key_fifths, relative_major
+from sunoauxtool.score.svg import ACCIDENTAL_STROKES
+from sunoauxtool.score.theory import key_fifths, relative_major
 
 # ---------------------------------------------------------------------------
 # 夹具与解析辅助

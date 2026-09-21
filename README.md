@@ -1,12 +1,18 @@
-# SmartNoteGen
+# SunoAuxTool
 
-本地 AI 音乐生成 CLI：**程序化多轨 MIDI → 渲染 WAV → Suno 合规导出**（10–30s 纯器乐），
-供用户上传 **Suno Pro** 合成成品（加人声 / 完整编曲）。
+**Suno / 海绵音乐 / 网易天音等 AI 音乐工具的前期 + 后期处理工具箱**（原 SmartNoteGen，
+v0.7.0 起统一为单一发行版 `sunoauxtool`）。
 
-> 技术栈：Python 3.12+ · Typer · music21 · pretty_midi · FluidSynth · numpy/soundfile
+- **前期**：旋律制作、程序化多轨 MIDI 生成、谱面产出（五线谱/简谱/MusicXML）、MIDI↔WAV 互转
+- **后期**：音频下载/转码（猫抓取证 + API adapter 留位，DownloadHelper）、DSP（规划中）、
+  音乐视频产出（多轨混音 + 7 种视觉含滚动谱面）、音质提升/分离修复（AudioSR 接入，R5）
+
+> 技术栈：Python 3.12+ · Typer · music21 · pretty_midi · FluidSynth · numpy/soundfile · Pillow · PyTorch（AI 可选）
 > P1 可选：MusicGen / DiffRhythm（AI 扩编曲与歌曲草稿，默认不安装）
 
-> 本仓库含三个独立可安装的组件（`smartnotegen` / `videomaker` / `Suno-Cat-Catch-Resolve`），
+> 模块布局（单包多子模块）：`sunoauxtool`（核心：生成/谱面/分析/导出）·
+> `sunoauxtool.video`（原 videomaker）· `sunoauxtool.download`（DownloadHelper，
+> 原 Suno-Cat-Catch-Resolve）· 旧包名 `smartnotegen` / `videomaker` 以兼容 shim 保留。
 > **完整功能清单（命令树、模块能力、错误码总表）见 [docs/features.md](docs/features.md)**。
 
 ---
@@ -16,12 +22,12 @@
 ### 1. 准备 venv 并安装依赖
 
 ```bash
-cd SmartNoteGen
+cd SunoAuxTool
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements/base.txt      # P0 运行依赖（不含 torch）
 pip install -r requirements/dev.txt       # 开发依赖（pytest 等）
-pip install -e .                          # 安装 smartnotegen 命令
+pip install -e .                          # 安装 sunoauxtool 命令（含 smartnotegen/videomaker/downloadhelper 兼容入口）
 ```
 
 ### 2. Windows 外部程序（渲染必需）
@@ -93,7 +99,7 @@ smartnotegen pipeline
 **能力**：多轨混音（增益/声像/归一化）、分轨可视化、滚动谱面（五线谱/简谱）、7 种视觉效果、多平台批量
 
 ```bash
-pip install -e src/videomaker      # 独立安装，需 ffmpeg
+videomaker render ... 命令随 `pip install -e .` 一并安装（兼容入口保留）
 
 # 抖音竖屏波形
 videomaker render output/.../x.wav --preset douyin --style waveform
@@ -136,7 +142,7 @@ videomaker render song.mid -p douyin --style score --tempo-grid --notation jianp
 而是明确报错并提示改用缓存捕获的那份（它已是完整明文副本）。
 
 ```bash
-pip install -e src/Suno-Cat-Catch-Resolve      # 独立安装，需 ffmpeg
+downloadhelper 命令随 `pip install -e .` 一并安装（兼容入口保留）
 export SUNO_FFMPEG=/d/tools/ffmpeg/bin/ffmpeg.exe   # ffmpeg 不在 PATH 时：指文件或指目录
 
 suno-cat-catch-resolve probe  "Suno _ AI Music.mp3"      # 取证判定

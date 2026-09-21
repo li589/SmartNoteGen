@@ -6,12 +6,12 @@ import json
 
 import pytest
 
-from smartnotegen.exceptions import ParameterError
-from smartnotegen.models.notes import Note, NoteSequence
-from smartnotegen.music_theory.counterpoint import CounterpointEngine
-from smartnotegen.music_theory.inversion import InversionResolver
-from smartnotegen.music_theory.rhythm_patterns import RhythmPatternRegistry
-from smartnotegen.music_theory.voice_leading import VoiceLeadingChecker
+from sunoauxtool.exceptions import ParameterError
+from sunoauxtool.models.notes import Note, NoteSequence
+from sunoauxtool.music_theory.counterpoint import CounterpointEngine
+from sunoauxtool.music_theory.inversion import InversionResolver
+from sunoauxtool.music_theory.rhythm_patterns import RhythmPatternRegistry
+from sunoauxtool.music_theory.voice_leading import VoiceLeadingChecker
 
 
 # ---------------------------------------------------------------------------
@@ -59,7 +59,7 @@ def test_from_json(tmp_path):
 
 def test_extra_patterns_injected():
     """extra_patterns 注入后可被 get。"""
-    from smartnotegen.music_theory import RhythmPattern
+    from sunoauxtool.music_theory import RhythmPattern
 
     extra = RhythmPattern("custom1", (1, 0, 0, 0, 0, 0, 0, 0), ("x",))
     reg = RhythmPatternRegistry(extra_patterns=[extra])
@@ -75,42 +75,42 @@ def test_onsets_in_bar():
 
 def test_pattern_density_high():
     """密度高 -> eighth。"""
-    from smartnotegen.music_theory import RhythmPattern
+    from sunoauxtool.music_theory import RhythmPattern
     pat = RhythmPattern("dense", (1, 1, 1, 1, 1, 1, 1, 1))
     assert pat.density == "eighth"
 
 
 def test_pattern_density_medium():
     """密度中等 -> half。"""
-    from smartnotegen.music_theory import RhythmPattern
+    from sunoauxtool.music_theory import RhythmPattern
     pat = RhythmPattern("mid", (1, 0, 1, 0, 1, 0, 0, 0))
     assert pat.density == "half"
 
 
 def test_pattern_density_low():
     """密度低 -> sustain。"""
-    from smartnotegen.music_theory import RhythmPattern
+    from sunoauxtool.music_theory import RhythmPattern
     pat = RhythmPattern("sparse", (1, 0, 0, 0, 0, 0, 0, 0))
     assert pat.density == "sustain"
 
 
 def test_pattern_density_empty():
     """空网格 -> sustain。"""
-    from smartnotegen.music_theory import RhythmPattern
+    from sunoauxtool.music_theory import RhythmPattern
     pat = RhythmPattern("empty", ())
     assert pat.density == "sustain"
 
 
 def test_onsets_in_bar_empty_grid():
     """空网格 onets 为空列表。"""
-    from smartnotegen.music_theory import RhythmPattern
+    from sunoauxtool.music_theory import RhythmPattern
     pat = RhythmPattern("empty", ())
     assert pat.onsets_in_bar(4.0) == []
 
 
 def test_from_json_missing_file():
     """from_json 不存在的文件 -> InputFileError(3)。"""
-    from smartnotegen.exceptions import InputFileError
+    from sunoauxtool.exceptions import InputFileError
     with pytest.raises(InputFileError):
         RhythmPatternRegistry.from_json("/nonexistent/x.json")
 
@@ -147,7 +147,7 @@ def test_from_string_empty():
 
 def test_names_includes_custom():
     """names() 包含自定义节奏型。"""
-    from smartnotegen.music_theory import RhythmPattern
+    from sunoauxtool.music_theory import RhythmPattern
     extra = RhythmPattern("myx", (1, 0, 0, 0, 0, 0, 0, 0))
     reg = RhythmPatternRegistry(extra_patterns=[extra])
     assert "myx" in reg.names()
@@ -262,7 +262,7 @@ def test_counterpoint_same_pitch_range_noop():
 
 def test_counterpoint_nearest_consonant():
     """_nearest_consonant 就近找协和音。"""
-    from smartnotegen.music_theory.counterpoint import CONSONANT_SETS
+    from sunoauxtool.music_theory.counterpoint import CONSONANT_SETS
     engine = CounterpointEngine(strictness=1)
     allowed = CONSONANT_SETS[1]
     # bass=48(C3)，pitch=61(C#4) 二度不协和 -> 就近找协和（C4=60）
@@ -273,7 +273,7 @@ def test_counterpoint_nearest_consonant():
 
 def test_counterpoint_nearest_consonant_boundary():
     """_nearest_consonant 在音域边界不越界。"""
-    from smartnotegen.music_theory.counterpoint import CONSONANT_SETS
+    from sunoauxtool.music_theory.counterpoint import CONSONANT_SETS
     engine = CounterpointEngine(strictness=1)
     allowed = CONSONANT_SETS[1]
     # 极高音：127 附近找协和，不越界

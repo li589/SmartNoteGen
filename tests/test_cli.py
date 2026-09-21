@@ -10,14 +10,14 @@ from pathlib import Path
 import numpy as np
 from typer.testing import CliRunner
 
-from smartnotegen.cli import app
-from smartnotegen.export.audio import write_wav
+from sunoauxtool.cli import app
+from sunoauxtool.export.audio import write_wav
 
 runner = CliRunner()
 
 
 def test_help_lists_all_subcommands():
-    """smartnotegen --help 列出全部子命令。"""
+    """sunoauxtool --help 列出全部子命令。"""
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
     for cmd in ["generate", "render", "export", "pipeline", "batch", "config", "ai"]:
@@ -27,14 +27,14 @@ def test_help_lists_all_subcommands():
 def test_version():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "0.6.0" in result.output
+    assert "0.7.0" in result.output
 
 
 def test_config_init(tmp_project):
-    result = runner.invoke(app, ["config", "init", "--path", "smartnotegen.toml"])
+    result = runner.invoke(app, ["config", "init", "--path", "sunoauxtool.toml"])
     assert result.exit_code == 0, result.output
-    assert Path("smartnotegen.toml").is_file()
-    content = Path("smartnotegen.toml").read_text(encoding="utf-8")
+    assert Path("sunoauxtool.toml").is_file()
+    content = Path("sunoauxtool.toml").read_text(encoding="utf-8")
     assert "[paths]" in content
 
 
@@ -114,8 +114,8 @@ def test_generate_style_rhythm_invalid_exit_1(tmp_project):
 
 def test_generate_style_rhythm_explicit_wins(tmp_project):
     """QA 缺陷 B 回归：--style + 显式合法 --rhythm 以显式值为准（funk 覆盖 pop 预设）。"""
-    from smartnotegen.cli import _request_from_config
-    from smartnotegen.config import Config
+    from sunoauxtool.cli import _request_from_config
+    from sunoauxtool.config import Config
 
     cfg = Config.load()
     req = _request_from_config(cfg, style="pop", rhythm="funk", seed=8)
@@ -126,8 +126,8 @@ def test_generate_style_rhythm_explicit_wins(tmp_project):
 
 def test_generate_style_rhythm_preset_default(tmp_project):
     """--style 且未显式 --rhythm 时使用风格预设节奏型（pop）。"""
-    from smartnotegen.cli import _request_from_config
-    from smartnotegen.config import Config
+    from sunoauxtool.cli import _request_from_config
+    from sunoauxtool.config import Config
 
     cfg = Config.load()
     req = _request_from_config(cfg, style="pop", seed=8)
@@ -172,7 +172,7 @@ def test_ai_musicgen_exit_6(tmp_project, monkeypatch):
 
 def test_ai_musicgen_writes_metadata(tmp_project, monkeypatch, tmp_path):
     """ai musicgen 成功后落盘 metadata.json（kind=draft, contains_vocals=false, sample_rate=32000）。"""
-    from smartnotegen.ai.musicgen import MusicGenAdapter
+    from sunoauxtool.ai.musicgen import MusicGenAdapter
 
     out_wav = tmp_path / "acc.wav"
     out_wav.write_bytes(b"RIFF\x00\x00\x00\x00fake-wav")
@@ -209,7 +209,7 @@ def test_ai_diffrhythm_exit_6(tmp_project, monkeypatch):
 
 def test_ai_diffrhythm_writes_metadata(tmp_project, monkeypatch, tmp_path):
     """ai diffrhythm 成功后元数据标注 contains_vocals=true（草稿不进 Suno 链）。"""
-    from smartnotegen.ai.diffrhythm import DiffRhythmAdapter
+    from sunoauxtool.ai.diffrhythm import DiffRhythmAdapter
 
     out_wav = tmp_path / "song.wav"
     out_wav.write_bytes(b"RIFF\x00\x00\x00\x00fake-wav")
@@ -248,8 +248,8 @@ def test_ai_adapters_unavailable_in_p0(monkeypatch):
     """AI 依赖缺失时 is_available() 均为 False（monkeypatch find_spec，环境无关）。"""
     import importlib.util
 
-    from smartnotegen.ai.diffrhythm import DiffRhythmAdapter
-    from smartnotegen.ai.musicgen import MusicGenAdapter
+    from sunoauxtool.ai.diffrhythm import DiffRhythmAdapter
+    from sunoauxtool.ai.musicgen import MusicGenAdapter
 
     monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
     assert MusicGenAdapter().is_available() is False
@@ -261,7 +261,7 @@ def test_no_torch_import_on_cli(tmp_project):
     src = Path(__file__).resolve().parents[1] / "src"
     env = {**os.environ, "PYTHONPATH": str(src)}
     code = (
-        "import sys; import smartnotegen.cli; "
+        "import sys; import sunoauxtool.cli; "
         "assert 'torch' not in sys.modules, 'torch imported!'; print('OK')"
     )
     r = subprocess.run(
@@ -285,8 +285,8 @@ def _fake_render(self, midi_path, soundfont, out_path):
 
 
 def test_pipeline_zero_arg_demo(tmp_project, monkeypatch):
-    """零参数 smartnotegen pipeline 完整跑通（mock 渲染）。"""
-    from smartnotegen.render.fluidsynth import FluidSynthRenderer
+    """零参数 sunoauxtool pipeline 完整跑通（mock 渲染）。"""
+    from sunoauxtool.render.fluidsynth import FluidSynthRenderer
 
     monkeypatch.setattr(FluidSynthRenderer, "render", _fake_render)
     result = runner.invoke(app, ["pipeline"])
@@ -300,7 +300,7 @@ def test_pipeline_zero_arg_demo(tmp_project, monkeypatch):
 
 def test_pipeline_with_params(tmp_project, monkeypatch):
     """pipeline 自定义参数：时长 20s。"""
-    from smartnotegen.render.fluidsynth import FluidSynthRenderer
+    from sunoauxtool.render.fluidsynth import FluidSynthRenderer
 
     monkeypatch.setattr(FluidSynthRenderer, "render", _fake_render)
     result = runner.invoke(
@@ -313,7 +313,7 @@ def test_pipeline_with_params(tmp_project, monkeypatch):
 
 def test_pipeline_cleans_tmp(tmp_project, monkeypatch):
     """pipeline 结束后 .tmp 中间产物清理。"""
-    from smartnotegen.render.fluidsynth import FluidSynthRenderer
+    from sunoauxtool.render.fluidsynth import FluidSynthRenderer
 
     monkeypatch.setattr(FluidSynthRenderer, "render", _fake_render)
     result = runner.invoke(app, ["pipeline"])

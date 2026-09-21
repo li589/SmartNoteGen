@@ -7,10 +7,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from smartnotegen.dsp import DspOptions, DspProcessor
-from smartnotegen.dsp import filters
-from smartnotegen.exceptions import ParameterError
-from smartnotegen.export import audio as audio_ops
+from sunoauxtool.dsp import DspOptions, DspProcessor
+from sunoauxtool.dsp import filters
+from sunoauxtool.exceptions import ParameterError
+from sunoauxtool.export import audio as audio_ops
 
 PEAK_ABS = float(10 ** (-1.0 / 20.0))  # -1 dBFS
 

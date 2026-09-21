@@ -7,9 +7,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from smartnotegen.exceptions import ExportError
-from smartnotegen.export import audio as audio_ops
-from smartnotegen.export.suno import ExportOptions, SunoExporter
+from sunoauxtool.exceptions import ExportError
+from sunoauxtool.export import audio as audio_ops
+from sunoauxtool.export.suno import ExportOptions, SunoExporter
 
 
 def test_read_write_wav_roundtrip(sine_wav):
@@ -108,7 +108,7 @@ def test_export_invalid_format(sine_wav, tmp_path):
 
 def test_export_missing_input(tmp_path):
     """输入 WAV 不存在 -> InputFileError(3)。"""
-    from smartnotegen.exceptions import InputFileError
+    from sunoauxtool.exceptions import InputFileError
 
     exporter = SunoExporter()
     with pytest.raises(InputFileError) as exc:
@@ -174,6 +174,6 @@ def test_describe_non_riff(tmp_path):
 
 def test_exporter_abstract():
     """抽象导出器不能直接实例化。"""
-    from smartnotegen.export.suno import Exporter
+    from sunoauxtool.export.suno import Exporter
     with pytest.raises(TypeError):
         Exporter()

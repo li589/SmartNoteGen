@@ -9,7 +9,7 @@ import pytest
 import soundfile as sf
 from typer.testing import CliRunner
 
-from smartnotegen.cli import app
+from sunoauxtool.cli import app
 
 runner = CliRunner()
 
@@ -112,7 +112,7 @@ def test_transcribe_grid_and_program_reach_result(melody_wav: Path, tmp_path: Pa
          "--program", "4", "-o", str(out)],
     )
     assert result.exit_code == 0, result.output
-    from smartnotegen.models.midi import MidiDocument
+    from sunoauxtool.models.midi import MidiDocument
 
     doc = MidiDocument.load(out)
     assert doc.tracks[0].program == 4

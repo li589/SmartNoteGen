@@ -17,15 +17,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from smartnotegen.ai.basicpitch import BasicPitchAdapter
-from smartnotegen.exceptions import AiDependencyError, InputFileError
+from sunoauxtool.ai.basicpitch import BasicPitchAdapter
+from sunoauxtool.exceptions import AiDependencyError, InputFileError
 
 HAS_BASICPITCH = importlib.util.find_spec("basic_pitch") is not None
 
 
 def test_module_import_does_not_pull_basic_pitch():
     """P0 隔离约束：import 适配器模块本身不得触发 basic_pitch 导入。"""
-    import smartnotegen.ai.basicpitch as mod
+    import sunoauxtool.ai.basicpitch as mod
 
     assert "basic_pitch" not in sys.modules
     assert mod.BasicPitchAdapter is not None

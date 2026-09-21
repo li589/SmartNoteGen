@@ -12,14 +12,14 @@ from pathlib import Path
 
 import pytest
 
-from smartnotegen.generators.base import (
+from sunoauxtool.generators.base import (
     GenerationRequest,
     resolve_scale_pitch_classes,
 )
-from smartnotegen.generators.music21_melody import Music21MelodyGenerator
-from smartnotegen.generators.procedural import ProceduralGenerator
-from smartnotegen.models.chords import ChordProgression
-from smartnotegen.models.midi import MidiDocument
+from sunoauxtool.generators.music21_melody import Music21MelodyGenerator
+from sunoauxtool.generators.procedural import ProceduralGenerator
+from sunoauxtool.models.chords import ChordProgression
+from sunoauxtool.models.midi import MidiDocument
 
 
 def _write_midi(seq, path: Path) -> Path:

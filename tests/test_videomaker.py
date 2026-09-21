@@ -1,7 +1,7 @@
-"""videomaker 单元测试（v0.2.0 W5）。
+"""sunoauxtool.video 单元测试（v0.2.0 W5）。
 
 覆盖：analysis 预计算 / visualizer 工厂 / compositor 路由 / presets / config。
-真实 ffmpeg 渲染的端到端冒烟见 test_videomaker_e2e.py（标记 slow）。
+真实 ffmpeg 渲染的端到端冒烟见 test_sunoauxtool.video_e2e.py（标记 slow）。
 """
 
 from __future__ import annotations
@@ -10,14 +10,14 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from videomaker.analysis import analyze
-from videomaker.config import Config
-from videomaker.visuals import create_visualizer
-from videomaker.visuals.base import VisualContext
-from videomaker.visuals.reactive import ReactiveVisualizer
-from videomaker.visuals.spectrum import CircularSpectrumVisualizer
-from videomaker.presets import PRESETS, get_preset, list_presets, resolve_preset
-from videomaker.compositor import FFMPEG_STYLES
+from sunoauxtool.video.analysis import analyze
+from sunoauxtool.video.config import Config
+from sunoauxtool.video.visuals import create_visualizer
+from sunoauxtool.video.visuals.base import VisualContext
+from sunoauxtool.video.visuals.reactive import ReactiveVisualizer
+from sunoauxtool.video.visuals.spectrum import CircularSpectrumVisualizer
+from sunoauxtool.video.presets import PRESETS, get_preset, list_presets, resolve_preset
+from sunoauxtool.video.compositor import FFMPEG_STYLES
 
 
 @pytest.fixture(scope="module")
@@ -63,7 +63,7 @@ class TestAudioAnalysis:
         assert a.rms_envelope.mean() > 0.1
 
     def test_missing_file_raises(self, tmp_path):
-        from videomaker.exceptions import AudioReadError
+        from sunoauxtool.video.exceptions import AudioReadError
         with pytest.raises(AudioReadError):
             analyze(str(tmp_path / "nonexistent.wav"))
 
@@ -192,14 +192,14 @@ class TestPresets:
 
 class TestLogoPrepare:
     def test_no_logo_returns_none(self):
-        from videomaker.engines.ffmpeg_engine import FFmpegEngine
+        from sunoauxtool.video.engines.ffmpeg_engine import FFmpegEngine
         e = FFmpegEngine(Config())  # logo.path 为空
         assert e._prepare_logo(1920, 1080, "out.mp4") is None
 
     def test_logo_even_size(self, tmp_path):
         """logo 缩放后必须是偶数尺寸（yuv420p 要求）。"""
         from PIL import Image, ImageDraw
-        from videomaker.engines.ffmpeg_engine import FFmpegEngine
+        from sunoauxtool.video.engines.ffmpeg_engine import FFmpegEngine
 
         # 101x99 奇数 logo
         logo = Image.new("RGBA", (101, 99), (0, 0, 0, 0))
@@ -220,7 +220,7 @@ class TestLogoPrepare:
 
     def test_logo_position_bottom_right(self, tmp_path):
         from PIL import Image
-        from videomaker.engines.ffmpeg_engine import FFmpegEngine
+        from sunoauxtool.video.engines.ffmpeg_engine import FFmpegEngine
 
         logo = Image.new("RGBA", (100, 100), (255, 0, 0, 255))
         logo_path = tmp_path / "logo2.png"

@@ -13,10 +13,10 @@ from __future__ import annotations
 
 import pytest
 
-from smartnotegen.models.midi import MidiDocument
-from smartnotegen.models.notes import Note, NoteSequence
-from smartnotegen.score import LayoutOptions, Score, layout_score
-from smartnotegen.score.theory import (
+from sunoauxtool.models.midi import MidiDocument
+from sunoauxtool.models.notes import Note, NoteSequence
+from sunoauxtool.score import LayoutOptions, Score, layout_score
+from sunoauxtool.score.theory import (
     accidental_glyph,
     beat_unit,
     beats_per_measure,
@@ -461,7 +461,7 @@ def test_from_midi_default_title_is_filename(tmp_path):
 
 
 def test_from_midi_missing_file_raises_input_error(tmp_path):
-    from smartnotegen.exceptions import InputFileError
+    from sunoauxtool.exceptions import InputFileError
 
     with pytest.raises(InputFileError) as exc:
         Score.from_midi(tmp_path / "nope.mid")

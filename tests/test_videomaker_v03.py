@@ -1,4 +1,4 @@
-"""videomaker v0.3 测试：多格式加载 / 多轨混音 / 分轨与滚动波形。"""
+"""sunoauxtool.video v0.3 测试：多格式加载 / 多轨混音 / 分轨与滚动波形。"""
 
 from __future__ import annotations
 
@@ -6,19 +6,19 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from videomaker.audio_io import (
+from sunoauxtool.video.audio_io import (
     AudioLoadResult,
     detect_format,
     is_supported,
     load_audio,
 )
-from videomaker.exceptions import AudioReadError
-from videomaker.mixer import TrackSpec, mix_tracks, parse_track_specs
-from videomaker.analysis import analyze, analyze_multitrack
-from videomaker.config import Config
-from videomaker.visuals import create_visualizer
-from videomaker.visuals.base import VisualContext
-from videomaker.visuals.tracks import TracksVisualizer, WaveformScrollVisualizer
+from sunoauxtool.video.exceptions import AudioReadError
+from sunoauxtool.video.mixer import TrackSpec, mix_tracks, parse_track_specs
+from sunoauxtool.video.analysis import analyze, analyze_multitrack
+from sunoauxtool.video.config import Config
+from sunoauxtool.video.visuals import create_visualizer
+from sunoauxtool.video.visuals.base import VisualContext
+from sunoauxtool.video.visuals.tracks import TracksVisualizer, WaveformScrollVisualizer
 
 
 @pytest.fixture(scope="module")
@@ -91,7 +91,7 @@ class TestAudioIO:
         assert r.sample_rate == 44100
         assert r.duration_s > 1.0
         # 清理临时渲染
-        from videomaker.audio_io import cleanup_rendered
+        from sunoauxtool.video.audio_io import cleanup_rendered
         cleanup_rendered(r)
 
     def test_missing_file(self, tmp_path):

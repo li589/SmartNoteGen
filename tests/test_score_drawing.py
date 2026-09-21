@@ -15,8 +15,8 @@ import struct
 
 import pytest
 
-from smartnotegen.score.drawing import Canvas, Op, parse_color, to_png, to_svg
-from smartnotegen.score.drawing import _flatten_path
+from sunoauxtool.score.drawing import Canvas, Op, parse_color, to_png, to_svg
+from sunoauxtool.score.drawing import _flatten_path
 
 PAGE = (200.0, 120.0)
 PAPER = "#ffffff"

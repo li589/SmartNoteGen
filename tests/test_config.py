@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from smartnotegen.config import Config, build_output_path
-from smartnotegen.exceptions import ConfigError
+from sunoauxtool.config import Config, build_output_path
+from sunoauxtool.exceptions import ConfigError
 
 
 def test_load_defaults(tmp_project):
@@ -88,7 +88,7 @@ def test_merge_cli_unknown_key(tmp_project):
 def test_write_template_roundtrip(tmp_path):
     """write_template 后再 load 回读，字段一致。"""
     cfg = Config().merge_cli(bpm=100, key="A minor", duration=20, seed=7)
-    target = cfg.write_template(tmp_path / "cfg" / "smartnotegen.toml")
+    target = cfg.write_template(tmp_path / "cfg" / "sunoauxtool.toml")
     loaded = Config.load(path=target)
     assert loaded.defaults.bpm == 100
     assert loaded.defaults.key == "A minor"

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-from smartnotegen.cli import _doctor_item
+from sunoauxtool.cli import _doctor_item
 
 
 def test_doctor_item_format(capsys):
@@ -30,10 +30,10 @@ def test_doctor_item_alignment(capsys):
 def test_doctor_via_typer():
     """doctor 子命令可通过 CLI 调用（不崩溃）。"""
     from typer.testing import CliRunner
-    from smartnotegen.cli import app
+    from sunoauxtool.cli import app
 
     runner = CliRunner()
     result = runner.invoke(app, ["doctor"])
     assert result.exit_code in (0, 1, 2)
-    assert "SmartNoteGen 环境诊断" in result.output
+    assert "SunoAuxTool 环境诊断" in result.output
     assert "Python" in result.output

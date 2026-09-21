@@ -6,7 +6,7 @@ import numpy as np
 import soundfile as sf
 from typer.testing import CliRunner
 
-from smartnotegen.cli import app
+from sunoauxtool.cli import app
 
 
 def _make_wav(path, freq=440, duration=1.0, sr=44100):
@@ -59,7 +59,7 @@ class TestInspireCLI:
             result = runner.invoke(app, ["inspire", "init"])
             assert result.exit_code == 0
             assert "灵感库已初始化" in result.output
-            assert (tmp_path / "smartnotegen.db").is_file()
+            assert (tmp_path / "sunoauxtool.db").is_file()
         finally:
             os.chdir(orig)
 

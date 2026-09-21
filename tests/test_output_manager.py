@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from smartnotegen.config import Config
-from smartnotegen.output_manager import ArtifactMeta, OutputManager, RunMeta
+from sunoauxtool.config import Config
+from sunoauxtool.output_manager import ArtifactMeta, OutputManager, RunMeta
 
 
 def _om(tmp_path, **cli) -> OutputManager:
@@ -76,7 +76,7 @@ def test_next_seq_anti_overwrite(tmp_path):
 def test_write_metadata_schema(tmp_path):
     """metadata.json 字段完整（schema_version/run/artifacts）。"""
     om = _om(tmp_path, project="myproj")
-    run = RunMeta(command="smartnotegen batch --count 3 --seed 42", seed=42,
+    run = RunMeta(command="sunoauxtool batch --count 3 --seed 42", seed=42,
                   started_at="2025-08-09T10:00:00", duration_s=3.2,
                   version="0.5.2", config_path=None)
     artifacts = [

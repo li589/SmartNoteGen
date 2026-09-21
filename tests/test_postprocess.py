@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from smartnotegen.generators.base import GenerationRequest
-from smartnotegen.generators.procedural import ProceduralGenerator
-from smartnotegen.music_theory.postprocess import apply_postprocess
+from sunoauxtool.generators.base import GenerationRequest
+from sunoauxtool.generators.procedural import ProceduralGenerator
+from sunoauxtool.music_theory.postprocess import apply_postprocess
 
 
 def test_postprocess_default_off():

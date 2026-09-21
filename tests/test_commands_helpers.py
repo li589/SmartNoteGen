@@ -15,10 +15,10 @@ import json
 import pytest
 import typer
 
-from smartnotegen.commands import helpers
-from smartnotegen.config import Config
-from smartnotegen.exceptions import ParameterError, RenderError
-from smartnotegen.output_manager import ArtifactMeta
+from sunoauxtool.commands import helpers
+from sunoauxtool.config import Config
+from sunoauxtool.exceptions import ParameterError, RenderError
+from sunoauxtool.output_manager import ArtifactMeta
 
 
 # -- _guard 错误守卫 --------------------------------------------------------

@@ -11,8 +11,8 @@ import types
 import numpy as np
 import pytest
 
-from smartnotegen.ai.musicgen import MusicGenAdapter
-from smartnotegen.exceptions import AiDependencyError, InputFileError, ParameterError
+from sunoauxtool.ai.musicgen import MusicGenAdapter
+from sunoauxtool.exceptions import AiDependencyError, InputFileError, ParameterError
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +121,7 @@ def fake_torch():
 @pytest.fixture
 def mock_musicgen_env(monkeypatch, fake_torch, tmp_path):
     """注入 fake torch/audiocraft 到 sys.modules，并 mock find_spec 为已安装。"""
-    import smartnotegen.ai.musicgen as mg_mod
+    import sunoauxtool.ai.musicgen as mg_mod
 
     models_mod = types.ModuleType("audiocraft.models")
     models_mod.MusicGen = _FakeMusicGen
@@ -148,7 +148,7 @@ def mock_musicgen_env(monkeypatch, fake_torch, tmp_path):
 
 
 def test_is_available_false_when_no_deps(monkeypatch):
-    import smartnotegen.ai.musicgen as mg_mod
+    import sunoauxtool.ai.musicgen as mg_mod
 
     monkeypatch.setattr(mg_mod.importlib.util, "find_spec", lambda _name: None)
     assert MusicGenAdapter().is_available() is False
@@ -195,7 +195,7 @@ def test_generate_medium_uses_chroma(mock_musicgen_env, tmp_path, monkeypatch):
 
 
 def test_generate_no_deps_exit_6(monkeypatch, tmp_path):
-    import smartnotegen.ai.musicgen as mg_mod
+    import sunoauxtool.ai.musicgen as mg_mod
 
     monkeypatch.setattr(mg_mod.importlib.util, "find_spec", lambda _name: None)
     with pytest.raises(AiDependencyError) as ei:

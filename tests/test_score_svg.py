@@ -19,9 +19,9 @@ from pathlib import Path
 
 import pytest
 
-from smartnotegen.models.notes import Note, NoteSequence
-from smartnotegen.score import LayoutOptions, Score, layout_score
-from smartnotegen.score.svg import (
+from sunoauxtool.models.notes import Note, NoteSequence
+from sunoauxtool.score import LayoutOptions, Score, layout_score
+from sunoauxtool.score.svg import (
     ACCIDENTAL_STROKES,
     BARLINE_THICK_W,
     BARLINE_W,

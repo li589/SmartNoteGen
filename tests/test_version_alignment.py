@@ -1,7 +1,7 @@
 """版本号对齐守卫。
 
 主包历史上因「pyproject.toml / __init__.py / 测试断言」三处版本号不同步
-漂移过两次（0.4.1→0.5.2、0.5.3→0.5.4）；videomaker 在 2026-09-20 也查出
+漂移过两次（0.4.1→0.5.2、0.5.3→0.5.4）；sunoauxtool.video 在 2026-09-20 也查出
 `pyproject.toml` 停留在 0.1.0 而源码已是 0.3.0。
 
 本模块用纯文件断言把这类漂移钉死：任何一处版本号改动未同步，测试立刻失败。
@@ -20,20 +20,17 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 #: (发行名, 包 __init__.py 相对路径, pyproject.toml 相对路径)
 PACKAGES = [
     (
-        "smartnotegen",
-        "src/smartnotegen/__init__.py",
+        "sunoauxtool",
+        "src/sunoauxtool/__init__.py",
         "pyproject.toml",
     ),
-    (
-        "videomaker",
-        "src/videomaker/__init__.py",
-        "src/videomaker/pyproject.toml",
-    ),
-    (
-        "Suno-Cat-Catch-Resolve",
-        "src/Suno-Cat-Catch-Resolve/suno_cat_catch_resolve/__init__.py",
-        "src/Suno-Cat-Catch-Resolve/pyproject.toml",
-    ),
+]
+
+#: 统一发行版内的子模块：__version__ 必须与主包镜像（0.6.0 起单包化，video/download
+#: 不再有独立 pyproject，版本一律跟发行版走）
+SUBMODULE_VERSION_MIRRORS = [
+    ("sunoauxtool.video", "src/sunoauxtool/video/__init__.py"),
+    ("sunoauxtool.download", "src/sunoauxtool/download/__init__.py"),
 ]
 
 
@@ -61,7 +58,7 @@ def test_pyproject_version_matches_module_version(dist, src_rel, pyproject_rel):
 def test_installed_metadata_matches_source(dist, src_rel, pyproject_rel):
     """已安装（editable）的元数据版本必须等于源码版本。
 
-    未安装则跳过——CI 只 `pip install -e .` 主包，videomaker / Suno 子包
+    未安装则跳过——CI 只 `pip install -e .` 主包，sunoauxtool.video / Suno 子包
     在 CI 上本来就未安装。本地启用 editable 后此断言可捕获「源码已升版、
     但没重装」的滞后（2026-09-20 实际发生的正是这种情况）。
     """
@@ -76,4 +73,14 @@ def test_installed_metadata_matches_source(dist, src_rel, pyproject_rel):
     assert installed == src_version, (
         f"{dist}: 已安装元数据为 {installed}，源码为 {src_version} —— "
         f"editable 安装已滞后，请执行 `pip install -e {pyproject_rel.rsplit('/', 1)[0] or '.'}`"
+    )
+
+
+@pytest.mark.parametrize("name, src_rel", SUBMODULE_VERSION_MIRRORS, ids=[p[0] for p in SUBMODULE_VERSION_MIRRORS])
+def test_submodule_version_mirrors_release(name, src_rel):
+    """子模块 __version__ 必须与主包版本一致（单发行版制）。"""
+    main = _read_version(REPO_ROOT / "src/sunoauxtool/__init__.py")
+    sub = _read_version(REPO_ROOT / src_rel)
+    assert sub == main, (
+        f"{name}: 子模块版本 {sub} != 主包版本 {main} —— 单发行版制下版本号必须镜像"
     )

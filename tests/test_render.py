@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from smartnotegen.exceptions import ConfigError, InputFileError, RenderError
-from smartnotegen.render.fluidsynth import FluidSynthRenderer
+from sunoauxtool.exceptions import ConfigError, InputFileError, RenderError
+from sunoauxtool.render.fluidsynth import FluidSynthRenderer
 
 
 def test_render_creates_wav(mock_fluidsynth, fake_midi, fake_soundfont, tmp_path):
@@ -48,7 +48,7 @@ def test_render_fluidsynth_not_found(monkeypatch, fake_midi, fake_soundfont, tmp
 
 def test_render_subprocess_failure(mock_fluidsynth, fake_midi, fake_soundfont, tmp_path, monkeypatch):
     """渲染进程非零退出 -> RenderError(4)。"""
-    from smartnotegen.render import fluidsynth as fs_mod
+    from sunoauxtool.render import fluidsynth as fs_mod
 
     class _Fail:
         returncode = 1
@@ -64,7 +64,7 @@ def test_render_subprocess_failure(mock_fluidsynth, fake_midi, fake_soundfont, t
 
 def test_render_subprocess_oserror(mock_fluidsynth, fake_midi, fake_soundfont, tmp_path, monkeypatch):
     """subprocess.run 抛 OSError -> RenderError(4)。"""
-    from smartnotegen.render import fluidsynth as fs_mod
+    from sunoauxtool.render import fluidsynth as fs_mod
 
     def _raise_oserror(*a, **k):
         raise OSError("file not found")
@@ -79,7 +79,7 @@ def test_render_subprocess_oserror(mock_fluidsynth, fake_midi, fake_soundfont, t
 
 def test_render_output_not_created(mock_fluidsynth, fake_midi, fake_soundfont, tmp_path, monkeypatch):
     """返回码 0 但输出文件未生成 -> RenderError(4)。"""
-    from smartnotegen.render import fluidsynth as fs_mod
+    from sunoauxtool.render import fluidsynth as fs_mod
 
     class _Ok:
         returncode = 0
@@ -95,7 +95,7 @@ def test_render_output_not_created(mock_fluidsynth, fake_midi, fake_soundfont, t
 
 def test_render_custom_fluidsynth_path(mock_fluidsynth, fake_midi, fake_soundfont, tmp_path, monkeypatch):
     """配置绝对路径的 fluidsynth 可被解析（文件存在）。"""
-    from smartnotegen.render import fluidsynth as fs_mod
+    from sunoauxtool.render import fluidsynth as fs_mod
 
     binary = tmp_path / "fluidsynth-custom.exe"
     binary.write_bytes(b"mock")
@@ -123,6 +123,6 @@ def test_render_dry_run(mock_fluidsynth, fake_midi, fake_soundfont, tmp_path):
 def test_render_dry_run_missing_midi(mock_fluidsynth, fake_soundfont, tmp_path):
     """dry_run 时 MIDI 不存在仍抛错（前置校验优先）。"""
     renderer = FluidSynthRenderer()
-    from smartnotegen.exceptions import InputFileError
+    from sunoauxtool.exceptions import InputFileError
     with pytest.raises(InputFileError):
         renderer.render(str(tmp_path / "nope.mid"), str(fake_soundfont), str(tmp_path / "o.wav"), dry_run=True)

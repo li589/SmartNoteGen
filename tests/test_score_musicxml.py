@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from smartnotegen.score import (
+from sunoauxtool.score import (
     MusicXmlOptions,
     Score,
     ScoreMeasure,
@@ -22,7 +22,7 @@ from smartnotegen.score import (
     validate_musicxml,
     write_musicxml,
 )
-from smartnotegen.score.musicxml import DIVISIONS
+from sunoauxtool.score.musicxml import DIVISIONS
 
 # ---------------------------------------------------------------------------
 # 构造辅助
@@ -446,7 +446,7 @@ def test_dot_count_matches_decomposition():
     出现 ``<dot/>`` 叠加两次的情况；这条断言的意义是让它与理论层保持同步，
     将来若表里加了双附点，这里会立刻暴露映射漏写。
     """
-    from smartnotegen.score.theory import duration_components
+    from sunoauxtool.score.theory import duration_components
 
     for quarters in (3.0, 6.0, 1.5, 0.75, 0.375, 0.1875, 0.09375):
         track = make_track(notes=[note(60, 0.0, quarters)], capacity=6.0)

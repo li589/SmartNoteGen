@@ -1,6 +1,6 @@
-# videomaker 使用指南
+# 视频产出（sunoauxtool.video，原 videomaker）使用指南
 
-> SmartNoteGen 音乐视频 / 音频可视化生成器 v0.3.0
+> SunoAuxTool 音乐视频 / 音频可视化生成器 v0.3.0
 > 把音频（**WAV / MP3 / FLAC / OGG / MIDI**）变成可发布的音乐视频，
 > 支持**多轨混音**与**分轨可视化**，适配抖音/YouTube/Instagram/官网四大平台。
 
@@ -10,7 +10,7 @@
 
 ```bash
 # 前置：已安装 SmartNoteGen（同 venv）
-pip install -e src/videomaker
+随主包安装：`pip install -e .`（videomaker 入口兼容保留）
 
 # 外部依赖
 ffmpeg --version   # 需在 PATH，或配置 [paths] ffmpeg 指定绝对路径

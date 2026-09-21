@@ -1,4 +1,4 @@
-"""``smartnotegen score`` / ``--score`` 的 CLI 端到端测试（#12）。
+"""``sunoauxtool score`` / ``--score`` 的 CLI 端到端测试（#12）。
 
 覆盖三处接入：
 - ``score`` 子命令本身（各格式、开关、错误路径与退出码）
@@ -13,11 +13,11 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from smartnotegen.cli import app
-from smartnotegen.models.midi import MidiDocument
-from smartnotegen.models.notes import Note, NoteSequence
-from smartnotegen.score import validate_musicxml
-from smartnotegen.score_export import SCORE_FORMATS
+from sunoauxtool.cli import app
+from sunoauxtool.models.midi import MidiDocument
+from sunoauxtool.models.notes import Note, NoteSequence
+from sunoauxtool.score import validate_musicxml
+from sunoauxtool.score_export import SCORE_FORMATS
 
 runner = CliRunner()
 
@@ -385,7 +385,7 @@ def test_pipeline_no_preview_keeps_dsp_overrides(tmp_path: Path, monkeypatch):
     """
     monkeypatch.chdir(tmp_path)
     captured: dict = {}
-    from smartnotegen import pipeline as pipeline_mod
+    from sunoauxtool import pipeline as pipeline_mod
 
     real_init = pipeline_mod.Pipeline.__init__
 

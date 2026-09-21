@@ -12,8 +12,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from smartnotegen.ai.diffrhythm import DiffRhythmAdapter
-from smartnotegen.exceptions import AiDependencyError, ParameterError
+from sunoauxtool.ai.diffrhythm import DiffRhythmAdapter
+from sunoauxtool.exceptions import AiDependencyError, ParameterError
 
 
 # ---------------------------------------------------------------------------
@@ -72,7 +72,7 @@ def fake_repo(tmp_path):
 @pytest.fixture
 def fake_subprocess_run(monkeypatch, tmp_path):
     """mock subprocess.run：解析 --output-dir 并写出 output.wav。"""
-    import smartnotegen.ai.diffrhythm as dr_mod
+    import sunoauxtool.ai.diffrhythm as dr_mod
 
     def _fake_run(cmd, cwd=None, env=None, capture_output=True, text=True, timeout=3600):
         out_idx = cmd.index("--output-dir") + 1
@@ -97,7 +97,7 @@ def fake_subprocess_run(monkeypatch, tmp_path):
 @pytest.fixture
 def mock_go_env(monkeypatch, fake_repo, fake_torch, fake_subprocess_run):
     """GO 分支环境：is_available()=True + fake torch（cuda 8GB 充足）。"""
-    import smartnotegen.ai.diffrhythm as dr_mod
+    import sunoauxtool.ai.diffrhythm as dr_mod
 
     monkeypatch.setattr(dr_mod.DiffRhythmAdapter, "is_available", lambda self: True)
     monkeypatch.setitem(sys.modules, "torch", fake_torch)
@@ -198,7 +198,7 @@ def test_check_espeak(monkeypatch):
 
 
 def test_is_available_false_without_torch(monkeypatch, fake_repo):
-    import smartnotegen.ai.diffrhythm as dr_mod
+    import sunoauxtool.ai.diffrhythm as dr_mod
 
     monkeypatch.setattr(dr_mod.importlib.util, "find_spec", lambda _name: None)
     monkeypatch.setattr(dr_mod.shutil, "which", lambda _name: "espeak-ng")
@@ -231,7 +231,7 @@ def test_generate_default_output_path(mock_go_env):
 
 
 def test_generate_no_deps_exit_6(monkeypatch):
-    import smartnotegen.ai.diffrhythm as dr_mod
+    import sunoauxtool.ai.diffrhythm as dr_mod
 
     monkeypatch.setattr(dr_mod.DiffRhythmAdapter, "is_available", lambda self: False)
     with pytest.raises(AiDependencyError) as ei:
@@ -269,7 +269,7 @@ def test_generate_invalid_duration(mock_go_env):
 
 
 def test_generate_cpu_device(mock_go_env, tmp_path, monkeypatch):
-    import smartnotegen.ai.diffrhythm as dr_mod
+    import sunoauxtool.ai.diffrhythm as dr_mod
 
     captured = {}
 

@@ -15,10 +15,10 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from videomaker.config import Config
-from videomaker.exceptions import RenderError
-from videomaker.visuals import ScoreVisualizer, VisualContext, create_visualizer
-from videomaker.visuals.score import _dia_of_pitch
+from sunoauxtool.video.config import Config
+from sunoauxtool.video.exceptions import RenderError
+from sunoauxtool.video.visuals import ScoreVisualizer, VisualContext, create_visualizer
+from sunoauxtool.video.visuals.score import _dia_of_pitch
 
 BASE_COLOR = (74, 158, 255)  # Config 默认 #4a9eff
 
@@ -29,8 +29,8 @@ BASE_COLOR = (74, 158, 255)  # Config 默认 #4a9eff
 
 def _make_score():
     """两小节 4/4 最小谱（melody + bass），bpm=120（1 拍 = 0.5s）。"""
-    from smartnotegen.models.notes import Note, NoteSequence
-    from smartnotegen.score import Score
+    from sunoauxtool.models.notes import Note, NoteSequence
+    from sunoauxtool.score import Score
 
     seq = NoteSequence(bpm=120, key="C major", time_signature="4/4", bars=2)
     seq.add_track(
@@ -197,8 +197,8 @@ class TestFallback:
         assert bool(np.any(np.abs(frame.astype(int) - bg).max(axis=-1) > 0))
 
     def test_empty_score_renders_hint(self):
-        from smartnotegen.models.notes import NoteSequence
-        from smartnotegen.score import Score
+        from sunoauxtool.models.notes import NoteSequence
+        from sunoauxtool.score import Score
 
         seq = NoteSequence(bpm=120, key="C major", time_signature="4/4", bars=1)
         score = Score.from_sequence(seq)
@@ -223,7 +223,7 @@ def tone_wav(tmp_path_factory):
 
 class TestVideoWiring:
     def test_score_style_without_midi_raises(self, tone_wav, tmp_path):
-        from videomaker.videomaker import video
+        from sunoauxtool.video.videomaker import video
 
         with pytest.raises(RenderError, match="score-midi"):
             video(
@@ -233,7 +233,7 @@ class TestVideoWiring:
             )
 
     def test_score_style_with_missing_midi_file_raises(self, tone_wav, tmp_path):
-        from videomaker.videomaker import video
+        from sunoauxtool.video.videomaker import video
 
         with pytest.raises(Exception):  # InputFileError（码 3）
             video(

@@ -7,11 +7,11 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from smartnotegen.batch import BatchOptions, BatchRunner
-from smartnotegen.cli import app
-from smartnotegen.config import Config
-from smartnotegen.exceptions import ParameterError
-from smartnotegen.generators import procedural as proc_mod
+from sunoauxtool.batch import BatchOptions, BatchRunner
+from sunoauxtool.cli import app
+from sunoauxtool.config import Config
+from sunoauxtool.exceptions import ParameterError
+from sunoauxtool.generators import procedural as proc_mod
 
 runner = CliRunner()
 
@@ -60,7 +60,7 @@ def test_batch_no_seed_records_actual(tmp_path, caplog):
     import logging
 
     cfg = Config().merge_cli(output_dir=str(tmp_path))
-    with caplog.at_level(logging.INFO, logger="smartnotegen.batch"):
+    with caplog.at_level(logging.INFO, logger="sunoauxtool.batch"):
         result = BatchRunner(BatchOptions(count=2), config=cfg).run()
     assert result.actual_seed is not None
     assert any("全局种子" in r.message for r in caplog.records)

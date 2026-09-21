@@ -24,16 +24,16 @@ import numpy as np
 import pytest
 from typer.testing import CliRunner
 
-from smartnotegen.cli import app
-from smartnotegen.config import Config, build_output_path
-from smartnotegen.exceptions import ConfigError, ParameterError
-from smartnotegen.export import audio as audio_ops
-from smartnotegen.export.suno import ExportOptions, SunoExporter
-from smartnotegen.generators.base import GenerationRequest, resolve_scale_pitch_classes
-from smartnotegen.generators.procedural import ProceduralGenerator
-from smartnotegen.models.chords import ChordProgression
-from smartnotegen.models.midi import MidiDocument
-from smartnotegen.models.notes import Note
+from sunoauxtool.cli import app
+from sunoauxtool.config import Config, build_output_path
+from sunoauxtool.exceptions import ConfigError, ParameterError
+from sunoauxtool.export import audio as audio_ops
+from sunoauxtool.export.suno import ExportOptions, SunoExporter
+from sunoauxtool.generators.base import GenerationRequest, resolve_scale_pitch_classes
+from sunoauxtool.generators.procedural import ProceduralGenerator
+from sunoauxtool.models.chords import ChordProgression
+from sunoauxtool.models.midi import MidiDocument
+from sunoauxtool.models.notes import Note
 
 runner = CliRunner()
 
@@ -60,7 +60,7 @@ def test_export_duration_boundary_30s(sine_wav, tmp_path):
 
 def test_export_duration_31s_rejected(sine_wav):
     """31s 越界 -> ExportError(5)。"""
-    from smartnotegen.exceptions import ExportError
+    from sunoauxtool.exceptions import ExportError
 
     exporter = SunoExporter()
     with pytest.raises(ExportError) as exc:
@@ -74,7 +74,7 @@ def test_export_duration_31s_rejected(sine_wav):
 
 def test_pipeline_duration_35_exit_5(tmp_project, monkeypatch):
     """pipeline --duration 35 -> 退出码 5（合规校验在导出层）。"""
-    from smartnotegen.render.fluidsynth import FluidSynthRenderer
+    from sunoauxtool.render.fluidsynth import FluidSynthRenderer
 
     def _fake_render(self, midi_path, soundfont, out_path):
         t = np.linspace(0, 30, 44100 * 30, endpoint=False)
@@ -178,7 +178,7 @@ def test_ai_diffrhythm_exit_6_cli(tmp_project):
 
 def test_melody_variations_zero_single_track():
     """variations=0 -> 仅主旋律轨，无变奏轨。"""
-    from smartnotegen.generators.music21_melody import Music21MelodyGenerator
+    from sunoauxtool.generators.music21_melody import Music21MelodyGenerator
 
     gen = Music21MelodyGenerator(seed=5)
     seq = gen.generate(GenerationRequest(seed=5, chords="C-G-Am-F", bars=8, variations=0))

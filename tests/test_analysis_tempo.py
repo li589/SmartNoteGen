@@ -13,8 +13,8 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from smartnotegen.analysis.tempo import TempoEstimate, beat_grid, estimate_bpm
-from smartnotegen.exceptions import InputFileError, ParameterError
+from sunoauxtool.analysis.tempo import TempoEstimate, beat_grid, estimate_bpm
+from sunoauxtool.exceptions import InputFileError, ParameterError
 
 SR = 22050
 
@@ -149,7 +149,7 @@ def test_beat_grid_rejects_nonpositive_bpm():
 
 
 def test_spectral_base_handles_tiny_signals():
-    from smartnotegen.analysis.spectral import (
+    from sunoauxtool.analysis.spectral import (
         frame_view,
         onset_strength,
         stft_magnitude,

@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from smartnotegen.cli import app
-from smartnotegen.styles import StyleError, StyleRegistry
+from sunoauxtool.cli import app
+from sunoauxtool.styles import StyleError, StyleRegistry
 
 runner = CliRunner()
 

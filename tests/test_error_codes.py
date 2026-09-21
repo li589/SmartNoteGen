@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typer.testing import CliRunner
 
-from smartnotegen.cli import app
-from smartnotegen.exceptions import (
+from sunoauxtool.cli import app
+from sunoauxtool.exceptions import (
     BatchFailedError,
     BatchPartialError,
     ERROR_CODES,
@@ -16,7 +16,7 @@ runner = CliRunner()
 
 
 def test_errors_command_lists_codes(tmp_project):
-    """smartnotegen errors 列出全部错误码 0-9。"""
+    """sunoauxtool errors 列出全部错误码 0-9。"""
     result = runner.invoke(app, ["errors"])
     assert result.exit_code == 0, result.output
     for code, name, _desc in ERROR_CODES:

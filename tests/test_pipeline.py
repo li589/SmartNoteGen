@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 
-from smartnotegen.config import Config
-from smartnotegen.pipeline import Pipeline, _force_remove_tree
+from sunoauxtool.config import Config
+from sunoauxtool.pipeline import Pipeline, _force_remove_tree
 
 
 def test_pipeline_preview_enabled_by_default():

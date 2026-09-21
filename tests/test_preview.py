@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from smartnotegen.preview import PreviewGenerator, compute_audio_features
+from sunoauxtool.preview import PreviewGenerator, compute_audio_features
 
 
 # ---------------------------------------------------------------------------

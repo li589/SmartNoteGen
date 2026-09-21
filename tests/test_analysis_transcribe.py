@@ -17,14 +17,14 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from smartnotegen.analysis.transcribe import (
+from sunoauxtool.analysis.transcribe import (
     TranscribeOptions,
     parse_grid,
     transcribe_wav,
     write_transcribed_midi,
 )
-from smartnotegen.exceptions import InputFileError, ParameterError
-from smartnotegen.models.midi import MidiDocument
+from sunoauxtool.exceptions import InputFileError, ParameterError
+from sunoauxtool.models.midi import MidiDocument
 
 SR = 22050
 DUR = 0.5  # 每音 0.5s；显式 bpm=120 时 = 每音 1 拍

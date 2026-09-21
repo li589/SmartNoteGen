@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from smartnotegen.inspire import InspirationDB
+from sunoauxtool.inspire import InspirationDB
 
 
 @pytest.fixture

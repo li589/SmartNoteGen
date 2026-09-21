@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from smartnotegen.sunopack import build_pack, write_upload_manifest
+from sunoauxtool.sunopack import build_pack, write_upload_manifest
 
 
 @pytest.fixture
@@ -110,7 +110,7 @@ class TestSunopackCLI:
     def test_export_suno_pack_help(self):
         """suno-pack --help 正常。"""
         from typer.testing import CliRunner
-        from smartnotegen.cli import app
+        from sunoauxtool.cli import app
         runner = CliRunner()
         result = runner.invoke(app, ["export", "suno-pack", "--help"])
         assert result.exit_code == 0
@@ -118,7 +118,7 @@ class TestSunopackCLI:
     def test_export_suno_manifest_help(self):
         """suno-manifest --help 正常。"""
         from typer.testing import CliRunner
-        from smartnotegen.cli import app
+        from sunoauxtool.cli import app
         runner = CliRunner()
         result = runner.invoke(app, ["export", "suno-manifest", "--help"])
         assert result.exit_code == 0

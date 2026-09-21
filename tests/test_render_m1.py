@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from smartnotegen import platform_paths
-from smartnotegen.exceptions import ConfigError, InputFileError, ModuleError, RenderError
-from smartnotegen.render.fluidsynth import FluidSynthRenderer
+from sunoauxtool import platform_paths
+from sunoauxtool.exceptions import ConfigError, InputFileError, ModuleError, RenderError
+from sunoauxtool.render.fluidsynth import FluidSynthRenderer
 
 
 def _mk_module_env(tmp_path):
@@ -37,7 +37,7 @@ def test_render_dry_run_no_files(tmp_path, fake_midi):
         raise AssertionError("dry-run 不应调用 subprocess")
 
     renderer = FluidSynthRenderer(fluidsynth_path="module/fs.exe")
-    from smartnotegen.render import fluidsynth as fs_mod
+    from sunoauxtool.render import fluidsynth as fs_mod
 
     import pytest
 
@@ -69,7 +69,7 @@ def test_render_module_soundfont_missing_raises_7(tmp_path, fake_midi, monkeypat
     fs_bin.parent.mkdir(parents=True)
     fs_bin.write_bytes(b"MZ")
     fs_bin.chmod(0o755)  # POSIX 需真实执行位，否则探测判 BROKEN（Windows 上为 no-op）
-    from smartnotegen.render import fluidsynth as fs_mod
+    from sunoauxtool.render import fluidsynth as fs_mod
 
     monkeypatch.setattr(fs_mod.subprocess, "run",
                         lambda *a, **k: _Result(0, "", ""))
@@ -93,7 +93,7 @@ class _Result:
 def test_render_module_paths_ok(tmp_path, fake_midi, monkeypatch):
     """module 相对路径（fluidsynth + 主音色库）解析成功并渲染。"""
     fs_bin, primary, _backup = _mk_module_env(tmp_path)
-    from smartnotegen.render import fluidsynth as fs_mod
+    from sunoauxtool.render import fluidsynth as fs_mod
 
     def fake_run(cmd, **kw):
         out_idx = cmd.index("-F") + 1
@@ -123,7 +123,7 @@ def test_render_soundfont_backup_fallback(tmp_path, fake_midi, monkeypatch):
     backup = tmp_path / "module" / "sf" / "backup.sf2"
     backup.parent.mkdir(parents=True)
     backup.write_bytes(b"RIFFbackup")
-    from smartnotegen.render import fluidsynth as fs_mod
+    from sunoauxtool.render import fluidsynth as fs_mod
 
     def fake_run(cmd, **kw):
         out = Path(cmd[cmd.index("-F") + 1])
@@ -147,7 +147,7 @@ def test_render_non_module_soundfont_missing_raises_2(tmp_path, fake_midi, monke
     fs_bin = tmp_path / "custom-fs.exe"
     fs_bin.write_bytes(b"MZ")
     fs_bin.chmod(0o755)  # POSIX 需真实执行位，否则探测判 BROKEN（Windows 上为 no-op）
-    from smartnotegen.render import fluidsynth as fs_mod
+    from sunoauxtool.render import fluidsynth as fs_mod
 
     monkeypatch.setattr(fs_mod.subprocess, "run",
                         lambda *a, **k: _Result(0, "", ""))
@@ -172,7 +172,7 @@ def test_render_cli_dry_run(tmp_project, fake_midi):
     """CLI render --dry-run：退出码 0、输出 DRY-RUN 标注、不写产物。"""
     from typer.testing import CliRunner
 
-    from smartnotegen.cli import app
+    from sunoauxtool.cli import app
 
     runner = CliRunner()
     result = runner.invoke(app, ["render", "--input", str(fake_midi), "--dry-run"])
@@ -193,7 +193,7 @@ def test_resolve_fluidsynth_falls_back_relative_posix(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
     monkeypatch.setattr(platform_paths.shutil, "which", lambda name: "/usr/bin/fluidsynth")
-    monkeypatch.setattr("smartnotegen.render.fluidsynth.os.access", lambda p, mode: False)
+    monkeypatch.setattr("sunoauxtool.render.fluidsynth.os.access", lambda p, mode: False)
 
     assert Path(renderer._resolve_fluidsynth()) == Path("/usr/bin/fluidsynth")
 
@@ -204,7 +204,7 @@ def test_resolve_fluidsynth_falls_back_absolute_posix(tmp_path, monkeypatch):
     renderer = FluidSynthRenderer(fluidsynth_path=str(fs_bin), project_root=tmp_path)
     monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
     monkeypatch.setattr(platform_paths.shutil, "which", lambda name: "/usr/bin/fluidsynth")
-    monkeypatch.setattr("smartnotegen.render.fluidsynth.os.access", lambda p, mode: False)
+    monkeypatch.setattr("sunoauxtool.render.fluidsynth.os.access", lambda p, mode: False)
 
     assert Path(renderer._resolve_fluidsynth()) == Path("/usr/bin/fluidsynth")
 
@@ -217,7 +217,7 @@ def test_resolve_fluidsynth_no_fallback_raises_module_error(tmp_path, monkeypatc
     )
     monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
     monkeypatch.setattr(platform_paths.shutil, "which", lambda name: None)
-    monkeypatch.setattr("smartnotegen.render.fluidsynth.os.access", lambda p, mode: False)
+    monkeypatch.setattr("sunoauxtool.render.fluidsynth.os.access", lambda p, mode: False)
 
     with pytest.raises(ModuleError) as exc:
         renderer._resolve_fluidsynth()
@@ -245,7 +245,7 @@ def test_resolve_absolute_module_no_fallback_raises_7(tmp_path, monkeypatch):
     renderer = FluidSynthRenderer(fluidsynth_path=str(fs_bin), project_root=tmp_path)
     monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
     monkeypatch.setattr(platform_paths.shutil, "which", lambda name: None)
-    monkeypatch.setattr("smartnotegen.render.fluidsynth.os.access", lambda p, mode: False)
+    monkeypatch.setattr("sunoauxtool.render.fluidsynth.os.access", lambda p, mode: False)
 
     with pytest.raises(ModuleError) as exc:
         renderer._resolve_fluidsynth()
@@ -260,7 +260,7 @@ def test_resolve_absolute_non_module_no_fallback_raises_4(tmp_path, monkeypatch)
     renderer = FluidSynthRenderer(fluidsynth_path=str(fs_bin), project_root=tmp_path)
     monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
     monkeypatch.setattr(platform_paths.shutil, "which", lambda name: None)
-    monkeypatch.setattr("smartnotegen.render.fluidsynth.os.access", lambda p, mode: False)
+    monkeypatch.setattr("sunoauxtool.render.fluidsynth.os.access", lambda p, mode: False)
 
     with pytest.raises(RenderError) as exc:
         renderer._resolve_fluidsynth()
@@ -275,7 +275,7 @@ def test_resolve_relative_non_module_no_fallback_raises_4(tmp_path, monkeypatch)
     renderer = FluidSynthRenderer(fluidsynth_path="sub/fluidsynth.exe", project_root=tmp_path)
     monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
     monkeypatch.setattr(platform_paths.shutil, "which", lambda name: None)
-    monkeypatch.setattr("smartnotegen.render.fluidsynth.os.access", lambda p, mode: False)
+    monkeypatch.setattr("sunoauxtool.render.fluidsynth.os.access", lambda p, mode: False)
 
     with pytest.raises(RenderError) as exc:
         renderer._resolve_fluidsynth()

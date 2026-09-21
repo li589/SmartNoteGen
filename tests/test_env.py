@@ -14,10 +14,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from smartnotegen import platform_paths
-from smartnotegen.config import Config
-from smartnotegen.env import PathResolver, ProbeStatus, ProjectRootResolver
-from smartnotegen.exceptions import ConfigError, ModuleError, RenderError
+from sunoauxtool import platform_paths
+from sunoauxtool.config import Config
+from sunoauxtool.env import PathResolver, ProbeStatus, ProjectRootResolver
+from sunoauxtool.exceptions import ConfigError, ModuleError, RenderError
 
 #: 注入 runner：模拟 fluidsynth 加载 SF2 成功（退出码 0，无错误文本）
 def _OK_RUNNER(cmd):
@@ -291,7 +291,7 @@ def test_probe_falls_back_to_system_on_posix(tmp_path, monkeypatch):
                     soundfont_backup=str(tmp_path / "b.sf2"))
     monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
     monkeypatch.setattr(platform_paths.shutil, "which", lambda name: "/usr/bin/fluidsynth")
-    monkeypatch.setattr("smartnotegen.env.os.access", lambda p, mode: False)
+    monkeypatch.setattr("sunoauxtool.env.os.access", lambda p, mode: False)
 
     resolver = PathResolver(cfg, project_root=tmp_path, runner=_OK_RUNNER)
     fs_probe = next(p for p in resolver.probe_all() if p.component == "fluidsynth")
@@ -310,7 +310,7 @@ def test_probe_keeps_broken_when_no_system_fallback(tmp_path, monkeypatch):
                     soundfont_backup=str(tmp_path / "b.sf2"))
     monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
     monkeypatch.setattr(platform_paths.shutil, "which", lambda name: None)
-    monkeypatch.setattr("smartnotegen.env.os.access", lambda p, mode: False)
+    monkeypatch.setattr("sunoauxtool.env.os.access", lambda p, mode: False)
 
     resolver = PathResolver(cfg, project_root=tmp_path, runner=_OK_RUNNER)
     fs_probe = next(p for p in resolver.probe_all() if p.component == "fluidsynth")
@@ -327,7 +327,7 @@ def test_resolve_fluidsynth_falls_back_on_posix(tmp_path, monkeypatch):
     cfg = _make_cfg(tmp_path, fluidsynth=str(fs_bin))
     monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
     monkeypatch.setattr(platform_paths.shutil, "which", lambda name: "/usr/bin/fluidsynth")
-    monkeypatch.setattr("smartnotegen.env.os.access", lambda p, mode: False)
+    monkeypatch.setattr("sunoauxtool.env.os.access", lambda p, mode: False)
 
     resolver = PathResolver(cfg, project_root=tmp_path)
     assert resolver.resolve_fluidsynth() == Path("/usr/bin/fluidsynth")
@@ -342,7 +342,7 @@ def test_resolve_fluidsynth_module_no_fallback_raises_7(tmp_path, monkeypatch):
     cfg = Config().merge_cli(fluidsynth="module/fluidsynth/bin/fluidsynth.exe")
     monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
     monkeypatch.setattr(platform_paths.shutil, "which", lambda name: None)
-    monkeypatch.setattr("smartnotegen.env.os.access", lambda p, mode: False)
+    monkeypatch.setattr("sunoauxtool.env.os.access", lambda p, mode: False)
 
     resolver = PathResolver(cfg, project_root=tmp_path)
     with pytest.raises(ModuleError) as exc:
@@ -357,7 +357,7 @@ def test_resolve_fluidsynth_non_module_no_fallback_raises_4(tmp_path, monkeypatc
     cfg = _make_cfg(tmp_path, fluidsynth=str(fs_bin))
     monkeypatch.setattr(platform_paths, "IS_WINDOWS", False)
     monkeypatch.setattr(platform_paths.shutil, "which", lambda name: None)
-    monkeypatch.setattr("smartnotegen.env.os.access", lambda p, mode: False)
+    monkeypatch.setattr("sunoauxtool.env.os.access", lambda p, mode: False)
 
     resolver = PathResolver(cfg, project_root=tmp_path)
     with pytest.raises(RenderError) as exc:
@@ -410,7 +410,7 @@ def test_probe_sf2_loadable_uses_isolated_cwd(tmp_path):
     cfg = _make_cfg(tmp_path, fluidsynth=str(fs_bin), soundfont=str(sf))
     resolver = PathResolver(cfg, project_root=tmp_path)  # 不注入 runner -> 走真实 subprocess 分支
     with pytest.MonkeyPatch.context() as mp:
-        mp.setattr("smartnotegen.env.subprocess.run", _fake_run)
+        mp.setattr("sunoauxtool.env.subprocess.run", _fake_run)
         assert resolver._probe_sf2_loadable(fs_bin, sf) is True
 
     assert captured.get("cwd"), "应以临时目录作为 cwd 以隔离 fluidsynth.wav"

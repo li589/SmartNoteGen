@@ -1,18 +1,19 @@
-"""videomaker 包。
+"""兼容别名包：videomaker 已并入 sunoauxtool.video（2026-09，v0.7.0）。
 
-SmartNoteGen 音乐视频 / 音频可视化生成器。
-消费 SNG 产出的 WAV + metadata.json，合成为发布级 MP4。
-v0.3：支持 WAV/MP3/FLAC/OGG/MIDI 多格式输入与多轨混音、分轨可视化。
+本 shim 只做名字转发：`import videomaker` 等价于 `import sunoauxtool.video`。
+将于 1-2 个版本后移除，请迁移到 `from sunoauxtool.video import ...`。
 """
 
-from __future__ import annotations
+import importlib as _importlib
+import sys as _sys
+import warnings as _warnings
 
-__version__ = "0.4.0"
-__all__ = ["__version__"]
+_warnings.warn(
+    "videomaker 已并入 sunoauxtool.video；本兼容别名将于 1-2 个版本后移除。",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-# 顶层导入，方便使用
-from .videomaker import video, video_multitrack, VideoResult
-from .config import Config
-from .exceptions import VideoMakerError
-
-__all__ += ["video", "video_multitrack", "VideoResult", "Config", "VideoMakerError"]
+_mod = _importlib.import_module("sunoauxtool.video")
+_sys.modules["videomaker"] = _mod
+globals().update({k: v for k, v in vars(_mod).items() if not k.startswith("__")})
