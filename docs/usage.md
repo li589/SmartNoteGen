@@ -1,6 +1,6 @@
 # SunoAuxTool 使用指南
 
-> 版本：v0.1.0（P0）｜ 配套文档：docs/PRD.md、docs/archive/architecture-P0.md、docs/task-plan.md
+> 版本：v1.3.0｜ 配套文档：docs/PRD.md、docs/archive/architecture-P0.md、docs/task-plan.md
 
 ---
 
@@ -202,6 +202,30 @@ sunoauxtool transcribe <wav> [-o out.mid] [--bpm auto|N] [--grid 1/16]
   网格量化）；复调请用 `--backend basic-pitch`（可选依赖，未装退出码 6）。
 - 窗长 2048 / 帧中心时间戳：为 1/16 网格量化精度做的取舍（4096 会因窗尾泄漏
   让音界提前 ~80ms）。
+
+#### 安装 basic-pitch（2026-09-22 实测）
+
+`basic-pitch` 最新版即 **0.4.0**，其依赖标记决定了装法，直接 `pip install` 在本项目
+（`requires-python >=3.12`）上**会失败**：
+
+| 环境 | 依赖标记命中 | 结果 |
+|------|------------|------|
+| Windows + Python **<3.11** | `onnxruntime`（自动） | 直接装即可 ✅ |
+| Windows + Python **≥3.11** | `tensorflow<2.15.1`（无 3.12 轮子） | 装不上 ❌ |
+
+但 **0.4.0 的代码本身能在 3.12 上跑**（已实测：ONNX 后端导入正常、`predict()` 端到端
+出 MIDI），阻碍只在 pip 解析阶段。绕开办法是跳过依赖解析、手动补装：
+
+```bash
+pip install basic-pitch --no-deps
+pip install resampy "mir-eval" onnxruntime
+# librosa / scipy / numpy / pretty_midi / scikit-learn 主环境已有，无需重复
+```
+
+**坑**：若 `--no-deps` 后漏装任何推理后端，`basic_pitch/__init__.py` 的后端选择链
+（`if/elif`，**无 else 分支**）会在模块级抛 `NameError: _default_model_type is not defined`。
+本适配器已把这类「装了包但没装后端」收口成**退出码 6**，并提示 `pip install onnxruntime`，
+不会再漏成退出码 1 的裸 NameError。后端优先级：TF > CoreML > TFLite > ONNX。
 
 ### 2.12 `analyze` — 调性 / 和弦 / 段落（R13）
 

@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import tomllib
 from pathlib import Path
 
@@ -84,3 +85,20 @@ def test_submodule_version_mirrors_release(name, src_rel):
     assert sub == main, (
         f"{name}: 子模块版本 {sub} != 主包版本 {main} —— 单发行版制下版本号必须镜像"
     )
+
+
+# ---------------------------------------------------------------------------
+# CHANGELOG 版本条目一致性（与 scripts/check_changelog.py 逻辑同源）
+# ---------------------------------------------------------------------------
+
+_CHECKER_SPEC = importlib.util.spec_from_file_location(
+    "check_changelog", REPO_ROOT / "scripts" / "check_changelog.py"
+)
+assert _CHECKER_SPEC is not None and _CHECKER_SPEC.loader is not None
+_check_mod = importlib.util.module_from_spec(_CHECKER_SPEC)
+_CHECKER_SPEC.loader.exec_module(_check_mod)
+
+
+def test_changelog_latest_version_matches_pyproject():
+    """CHANGELOG 最新 `[X.Y.Z]` 条目必须等于 pyproject.toml 的 project.version。"""
+    assert _check_mod.check() == 0

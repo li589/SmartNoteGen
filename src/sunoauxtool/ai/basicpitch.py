@@ -109,7 +109,20 @@ class BasicPitchAdapter(AIGenerator):
         # 延迟导入（P0 模块零重型 import 约束）
         # 0.4.x 签名：predict(audio, model=...) -> (model_output, midi_data, note_events)。
         # 实测官方顺序，此处直接使用；保留关键字序兜底兼容历史版本。
-        from basic_pitch.inference import predict
+        #
+        # 注意：basic_pitch/__init__.py 的后端选择链 if/elif **没有 else 分支**，
+        # 四个后端（tf/coreml/tflite/onnx）一个都没装时会在模块级抛
+        # `NameError: _default_model_type is not defined`。这种「装了包但没装后端」
+        # 的状态必须报成退出码 6 并给出可操作的指引，而不是漏成退出码 1 的 NameError。
+        try:
+            from basic_pitch.inference import predict
+        except Exception as exc:  # pragma: no cover - 依赖真实环境
+            raise AiDependencyError(
+                f"basic-pitch 已安装但导入失败（多半是没装推理后端）：{exc}。"
+                f"Windows/onnx 路线请执行 `pip install onnxruntime`；"
+                f"也可用 `pip install 'basic-pitch[tf]'` 走 TensorFlow 后端。",
+                code=6,
+            ) from exc
 
         model = self._resolve_model_path()
         try:

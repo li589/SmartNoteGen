@@ -139,6 +139,28 @@ def test_model_path_must_exist(monkeypatch, tmp_path: Path):
     assert exc.value.code == 6
 
 
+def test_import_failure_without_backend_is_code_6(monkeypatch, tmp_path: Path):
+    """装了包但没装推理后端 → 退出码 6，不能漏成退出码 1 的 NameError。
+
+    真实场景：basic_pitch/__init__.py 的后端选择链 if/elif 无 else 分支，
+    四个后端全缺时模块级抛 `NameError: _default_model_type is not defined`。
+    这里用 sys.modules 置 None 触发 ImportError 来模拟「导入即炸」这一类失败。
+    """
+    wav = tmp_path / "in.wav"
+    wav.write_bytes(b"RIFF")
+
+    fake_top = types.ModuleType("basic_pitch")
+    monkeypatch.setitem(sys.modules, "basic_pitch", fake_top)
+    monkeypatch.setitem(sys.modules, "basic_pitch.inference", None)
+
+    adapter = BasicPitchAdapter()
+    monkeypatch.setattr(BasicPitchAdapter, "is_available", lambda self: True)
+    with pytest.raises(AiDependencyError) as exc:
+        adapter.transcribe(str(wav))
+    assert exc.value.code == 6
+    assert "onnxruntime" in str(exc.value)  # 指引里必须给可操作的安装命令
+
+
 def test_generate_is_an_alias_of_transcribe(monkeypatch, tmp_path: Path):
     """AIGenerator 接口兼容：generate() 忽略 prompt、行为同 transcribe()。"""
     wav = tmp_path / "in.wav"

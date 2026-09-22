@@ -71,11 +71,18 @@ py3langid
 # --- 可选：basic-pitch 复调转谱后端（#13 预留，未装不影响其它功能） ---
 # 内置 transcribe 只做单旋律；复调（和弦/多乐器）用本后端：
 #   smartnotegen transcribe in.wav --backend basic-pitch   （未装 -> 退出码 6）
-# 首次运行 ICModel() 自动下载约 100MB 权重到用户缓存。
+# 模型已打包在包内（basic_pitch/saved_models/icassp_2022/nmp.onnx），无需下载权重；
+# 0.4.0 顶层已无 ICModel 类（旧文档里「ICModel() 下载权重」的说法已失效）。
 # 注意：**已在本机实装验证**（2026-09-22，basic-pitch 0.4.0 / Py3.9 onnx 后端）：
 #   - predict(audio_path, model=...) 三元组签名，(model_output, midi_data, note_events)
 #   - ICModel 顶层类已移除；model_path=None 时用内置默认模型
 #   - 位置序优先，关键字回退；异常捕获 (TypeError, ValueError)
 #   - 3s C-E-G 合成音频 → 正确识别 A-C，5 个音，输 .mid 落盘成功
-# 若未装：pip install basic-pitch（需 Python ≤3.10 + onnxruntime 后端）
+# 若未装：直接 `pip install basic-pitch` 在 Python ≥3.11 **会失败**
+#   （依赖标记 `tensorflow<2.15.1; python_version >= "3.11"` 无 3.12 轮子）。
+#   代码本身可在 3.12 运行，跳过依赖解析即可：
+#     pip install basic-pitch --no-deps
+#     pip install resampy mir-eval onnxruntime
+#   漏装后端会触发 basic_pitch/__init__.py 的 NameError（if/elif 无 else 分支），
+#   适配器已收口为退出码 6 并提示安装命令。详见 docs/usage.md §2.11。
 basic-pitch
